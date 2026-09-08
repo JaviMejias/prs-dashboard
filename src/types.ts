@@ -1,0 +1,14 @@
+export type RepoConfig = { workspace: string; repo: string }
+export type Session = { email: string; token: string; expiresAt: number; uuid?: string; displayName?: string }
+export type BitbucketUser = { uuid: string; display_name: string }
+export type ActivityUser = { uuid?: string; display_name?: string }
+export type Participant = { user?: ActivityUser; approved?: boolean; state?: string; participated_on?: string }
+export type PullRequestActivity = { pull_request?: { id?: number }; comment?: { created_on?: string; updated_on?: string; deleted?: boolean; user?: ActivityUser }; approval?: { date?: string; user?: ActivityUser }; update?: { date?: string; author?: ActivityUser; state?: string } }
+export type PullRequest = { id: number; title: string; state: 'OPEN' | 'MERGED' | 'DECLINED'; draft?: boolean; queued?: boolean; created_on: string; updated_on: string; author?: { display_name?: string; nickname?: string; links?: { avatar?: { href?: string } } }; source?: { branch?: { name?: string }; repository?: { full_name?: string; links?: { html?: { href?: string } } } }; destination?: { branch?: { name?: string }; repository?: { full_name?: string; links?: { html?: { href?: string } } } }; links?: { html?: { href?: string } }; comment_count?: number; participants?: Participant[]; activity?: PullRequestActivity[]; repo: RepoConfig }
+export type PrStatus = 'unreviewed' | 'changes' | 'waiting' | 'current' | 'merged' | 'declined'
+export type ReviewerState = 'approved' | 'waiting' | 'reviewed' | 'changes'
+export type LifecycleStatus = 'OPEN' | 'DRAFT' | 'QUEUED' | 'MERGED' | 'DECLINED'
+export type PrStats = { commits: number; files: number; added: number; removed: number }
+export type Notice = { id: string; text: string; createdAt: number; read: boolean }
+export type NotificationPreferences = { desktop: boolean; sound: boolean; title: boolean }
+export type IgnoreRules = { authors: string[]; pullRequests: string[] }
