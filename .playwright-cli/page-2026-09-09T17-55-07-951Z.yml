@@ -1,0 +1,75 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - link "Saltar a la cola" [ref=f3e4] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=f3e5]:
+      - strong [ref=f3e14]: PR Control Room
+      - generic [ref=f3e15]:
+        - button "Actualizar pull requests" [ref=f3e16] [cursor=pointer]
+        - generic [ref=f3e22]:
+          - button "Notificaciones" [expanded] [active] [ref=f3e23] [cursor=pointer]
+          - dialog [ref=f3e74]:
+            - generic [ref=f3e75]:
+              - generic [ref=f3e76]:
+                - text: Cola de atención
+                - heading "Notificaciones" [level=2] [ref=f3e77]
+              - generic [ref=f3e78]:
+                - button "Borrar todo" [ref=f3e79] [cursor=pointer]
+                - button "Cerrar notificaciones" [ref=f3e83] [cursor=pointer]
+            - generic [ref=f3e87]:
+              - article [ref=f3e88]:
+                - generic [ref=f3e97]:
+                  - paragraph [ref=f3e98]:
+                    - link "Abrir repositorio de Carlo Osores Salgado" [ref=f3e99] [cursor=pointer]:
+                      - /url: https://bitbucket.org/kontroller_test/carlo-kontroller_test
+                      - text: Carlo Osores Salgado
+                    - text: actualizó
+                    - 'link "Abrir pull request KON-1721: Feature/measure unit 3 chile" [ref=f3e103] [cursor=pointer]':
+                      - /url: https://bitbucket.org/kontroller_test/kontroller_test/pull-requests/14833
+                      - text: "KON-1721: Feature/measure unit 3 chile"
+                  - generic [ref=f3e107]:
+                    - generic [ref=f3e108]: Revisar
+                    - generic [ref=f3e109]: "kontroller_test #14833"
+                    - time [ref=f3e114]: hace 11 min
+                - button "Borrar notificación del PR 14833" [ref=f3e118] [cursor=pointer]
+              - article [ref=f3e122]:
+                - generic [ref=f3e128]:
+                  - paragraph [ref=f3e129]:
+                    - link "Abrir repositorio de María Fernanda de los Ángeles Pérez" [ref=f3e130] [cursor=pointer]:
+                      - /url: https://bitbucket.org/kontroller_test/maria-providers_api
+                      - text: María Fernanda de los Ángeles Pérez
+                    - text: abrió
+                    - 'link "Abrir pull request feat: validar conciliación automática de documentos tributarios pendientes" [ref=f3e134] [cursor=pointer]':
+                      - /url: https://bitbucket.org/kontroller_test/providers_api/pull-requests/921
+                      - text: "feat: validar conciliación automática de documentos tributarios pendientes"
+                  - generic [ref=f3e138]:
+                    - generic [ref=f3e139]: Nuevo PR
+                    - generic [ref=f3e140]: "providers_api #921"
+                    - time [ref=f3e145]: hace 53 min
+                - button "Borrar notificación del PR 921" [ref=f3e149] [cursor=pointer]
+        - button "Abrir configuración" [ref=f3e27] [cursor=pointer]:
+          - generic "Javier Mejías" [ref=f3e28]: JM
+    - main [ref=f3e29]:
+      - region [ref=f3e30]:
+        - generic [ref=f3e31]:
+          - text: Bandeja priorizada
+          - heading "Cola de revisión" [level=1] [ref=f3e32]
+          - paragraph [ref=f3e33]: Prioridad y contexto para decidir sin volver a recorrer Bitbucket.
+        - generic "0 requieren tu revisión" [ref=f3e34]:
+          - strong [ref=f3e43]: "0"
+      - region "Filtros de la cola" [ref=f3e44]:
+        - button "Filtros" [ref=f3e45] [cursor=pointer]
+        - status [ref=f3e48]:
+          - generic [ref=f3e49]:
+            - strong [ref=f3e50]: "0"
+            - text: resultados
+          - text: ·
+      - region [ref=f3e51]:
+        - generic [ref=f3e52]:
+          - heading "Prioridad de revisión" [level=2] [ref=f3e53]
+          - generic [ref=f3e54]: Actualizando actividad
+        - generic [ref=f3e62]:
+          - heading "Conecta tu primer repositorio" [level=3] [ref=f3e68]
+          - paragraph [ref=f3e69]: Agrega un repositorio de Bitbucket para empezar a construir tu cola.
+          - button "Configurar repositorios" [ref=f3e70] [cursor=pointer]
+  - region "Notifications alt+T"

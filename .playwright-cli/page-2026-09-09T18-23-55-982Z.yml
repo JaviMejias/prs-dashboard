@@ -1,0 +1,37 @@
+- generic [ref=e2]:
+  - main [ref=e3]:
+    - region [ref=e4]:
+      - generic [ref=e11]:
+        - strong [ref=e12]: PR Control Room
+        - generic [ref=e13]: Bitbucket review intelligence
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - text: Tu turno. Sin adivinar.
+          - heading "Controla el relevo de cada revisión." [level=1] [ref=e16]
+          - paragraph [ref=e17]: Una cola precisa para saber qué cambió, quién actuó al final y qué necesita tu atención.
+        - generic "Ejemplo del flujo de revisión" [ref=e18]:
+          - generic [ref=e23]:
+            - strong [ref=e24]: El autor publica cambios
+            - generic [ref=e25]: Actividad detectada
+          - generic [ref=e35]:
+            - strong [ref=e36]: Tu revisión queda pendiente
+            - generic [ref=e37]: El siguiente turno es tuyo
+    - region [ref=e40]:
+      - generic [ref=e41]:
+        - text: Conexión segura
+        - heading "Entra con Bitbucket" [level=2] [ref=e42]
+        - paragraph [ref=e43]: Usa tu correo de Atlassian y un API token de solo lectura.
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - generic [ref=e46]: Correo Atlassian
+          - textbox "Correo Atlassian" [ref=e47]:
+            - /placeholder: tu@empresa.com
+        - generic [ref=e48]:
+          - generic [ref=e49]: API token
+          - generic [ref=e50]:
+            - textbox "API token Mostrar API token" [ref=e51]:
+              - /placeholder: ••••••••••••••••
+            - button "Mostrar API token" [ref=e52] [cursor=pointer]
+        - button "Conectar con Bitbucket" [ref=e56] [cursor=pointer]
+      - paragraph [ref=e60]: El token queda guardado únicamente en este navegador y se envía directamente a Bitbucket.
+  - region "Notifications alt+T"

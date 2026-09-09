@@ -1,0 +1,115 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - link "Saltar a la cola" [ref=f3e4] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=f3e5]:
+      - strong [ref=f3e14]: PR Control Room
+      - generic [ref=f3e16]:
+        - button "Actualizar pull requests" [ref=f3e22] [cursor=pointer]
+        - generic [ref=f3e28]:
+          - button "Notificaciones" [expanded] [active] [ref=f3e147] [cursor=pointer]
+          - dialog [ref=f3e277]:
+            - generic [ref=f3e278]:
+              - generic [ref=f3e279]:
+                - text: Cola de atención
+                - heading "Notificaciones" [level=2] [ref=f3e280]
+              - generic [ref=f3e281]:
+                - button "Borrar todo" [ref=f3e282] [cursor=pointer]
+                - button "Cerrar notificaciones" [ref=f3e286] [cursor=pointer]
+            - article [ref=f3e291]:
+              - button "Mostrar PR 14833 en la cola" [ref=f3e292] [cursor=pointer]
+              - generic:
+                - paragraph:
+                  - link "Abrir repositorio de Carlo Osores Salgado" [ref=f3e293] [cursor=pointer]:
+                    - /url: https://bitbucket.org/kontroller_test/carlo-kontroller_test
+                    - text: Carlo Osores Salgado
+                  - text: actualizó
+                  - 'link "Abrir pull request KON-1721: Feature/measure unit 3 chile" [ref=f3e297] [cursor=pointer]':
+                    - /url: https://bitbucket.org/kontroller_test/kontroller_test/pull-requests/14833
+                    - text: "KON-1721: Feature/measure unit 3 chile"
+                - generic:
+                  - generic: Revisar
+                  - generic: "kontroller_test #14833"
+                  - time: hace 6 min
+                  - generic: Leída
+                - generic: Mostrar en la cola
+              - button "Borrar notificación del PR 14833" [ref=f3e301] [cursor=pointer]
+        - button "Abrir configuración" [ref=f3e34] [cursor=pointer]:
+          - generic "Javier Mejías" [ref=f3e35]: JM
+    - main [ref=f3e42]:
+      - region [ref=f3e43]:
+        - generic [ref=f3e44]:
+          - text: Bandeja priorizada
+          - heading "Cola de revisión" [level=1] [ref=f3e45]
+          - paragraph [ref=f3e46]: Prioridad y contexto para decidir sin volver a recorrer Bitbucket.
+        - generic "0 requieren tu revisión" [ref=f3e47]:
+          - strong [ref=f3e56]: "0"
+      - region "Filtros de la cola" [ref=f3e58]:
+        - button "Filtros 3 filtros modificados" [ref=f3e273] [cursor=pointer]:
+          - generic [ref=f3e275]: Filtros
+          - generic "3 filtros modificados" [ref=f3e276]: "3"
+        - status [ref=f3e91]:
+          - generic [ref=f3e94]:
+            - strong [ref=f3e95]: "1"
+            - text: resultados
+          - text: ·
+        - button "Limpiar" [ref=f3e151] [cursor=pointer]
+      - region [ref=f3e97]:
+        - generic [ref=f3e98]:
+          - heading "Prioridad de revisión" [level=2] [ref=f3e99]
+          - generic [ref=f3e100]: Actualizando actividad
+        - article [ref=f3e155]:
+          - generic [ref=f3e156]:
+            - generic [ref=f3e157]:
+              - generic [ref=f3e158]: Fusionado
+              - generic [ref=f3e163]: Fusionado
+              - time [ref=f3e165]: Actualizado hace 7 h
+            - 'link "Abrir PR 14833: KON-1721: Feature/measure unit 3 chile en Bitbucket" [ref=f3e169] [cursor=pointer]':
+              - /url: https://bitbucket.org/kontroller_test/kontroller_test/pull-requests/14833
+              - 'heading "KON-1721: Feature/measure unit 3 chile" [level=2] [ref=f3e170]'
+            - generic [ref=f3e175]:
+              - generic "Carlo Osores Salgado" [ref=f3e176]: CS
+              - generic [ref=f3e177]:
+                - link "Abrir repositorio origen de Carlo Osores Salgado" [ref=f3e178] [cursor=pointer]:
+                  - /url: https://bitbucket.org/kontroller_test/carlo-kontroller_test
+                  - strong [ref=f3e179]: Carlo Osores Salgado
+                - generic [ref=f3e185]:
+                  - text: kontroller_test
+                  - generic [ref=f3e186]: "#14833"
+              - generic "feature/measure-unit-3-chile → propyme_production" [ref=f3e187]:
+                - generic [ref=f3e192]: feature/measure-unit-3-chile
+                - generic [ref=f3e193]: →
+                - generic [ref=f3e194]: propyme_production
+            - generic [ref=f3e205]:
+              - strong [ref=f3e206]: Ciclo completado
+              - generic [ref=f3e207]: Bitbucket registró este PR como fusionado.
+          - complementary "Revisores" [ref=f3e208]:
+            - button "Sin actividad de QA Actividad QA" [ref=f3e211] [cursor=pointer]:
+              - generic [aria-hidden] [ref=f3e212]:
+                - generic [ref=f3e213]: JM
+                - generic [ref=f3e214]: DM
+                - generic [ref=f3e215]: IR
+              - generic [ref=f3e216]:
+                - strong [ref=f3e217]: Sin actividad de QA
+                - generic [ref=f3e218]: Actividad QA
+          - button "Más acciones para el PR 14833" [ref=f3e223] [cursor=pointer]
+          - generic "Estadísticas del pull request" [ref=f3e228]:
+            - generic [ref=f3e229]:
+              - generic [ref=f3e232]: Creado
+              - strong [ref=f3e233]: 09-09-2026
+            - generic [ref=f3e234]:
+              - strong [ref=f3e237]: "4"
+              - generic [ref=f3e238]: comentarios
+            - generic [ref=f3e239]:
+              - strong [ref=f3e242]: "0"
+              - generic [ref=f3e243]: commits
+            - generic [ref=f3e244]:
+              - strong [ref=f3e250]: "0"
+              - generic [ref=f3e251]: archivos
+            - generic [ref=f3e252]:
+              - strong [ref=f3e254]: "0"
+              - generic [ref=f3e255]: añadidos
+            - generic [ref=f3e256]:
+              - strong [ref=f3e258]: "0"
+              - generic [ref=f3e259]: eliminados
+  - region "Notifications alt+T"

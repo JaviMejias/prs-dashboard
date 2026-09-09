@@ -1,0 +1,102 @@
+- generic [ref=f1e2]:
+  - generic [ref=f1e3]:
+    - link "Saltar a la cola" [ref=f1e4] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=f1e5]:
+      - generic [ref=f1e13]:
+        - strong [ref=f1e14]: PR Control Room
+        - generic [ref=f1e15]: Bitbucket review intelligence
+      - generic [ref=f1e16]:
+        - status [ref=f1e17]:
+          - generic [ref=f1e19]:
+            - strong [ref=f1e20]: Conectado
+            - generic [ref=f1e21]: Bitbucket Cloud
+        - button "Actualizar pull requests" [ref=f1e22] [cursor=pointer]
+        - generic [ref=f1e28]:
+          - button "Notificaciones" [expanded] [active] [ref=f1e124] [cursor=pointer]
+          - dialog [ref=f1e125]:
+            - banner [ref=f1e126]:
+              - generic [ref=f1e127]:
+                - text: Cola de atención
+                - heading "Notificaciones" [level=2] [ref=f1e128]
+              - generic [ref=f1e129]:
+                - button "Borrar todo" [ref=f1e130] [cursor=pointer]
+                - button "Cerrar notificaciones" [ref=f1e134] [cursor=pointer]
+            - generic [ref=f1e138]:
+              - article [ref=f1e139]:
+                - generic [ref=f1e148]:
+                  - paragraph [ref=f1e149]:
+                    - link "Abrir repositorio de Carlo Osores Salgado" [ref=f1e150] [cursor=pointer]:
+                      - /url: https://bitbucket.org/kontroller_test/carlo-kontroller_test
+                      - text: Carlo Osores Salgado
+                    - text: actualizó
+                    - 'link "Abrir pull request KON-1721: Feature/measure unit 3 chile" [ref=f1e154] [cursor=pointer]':
+                      - /url: https://bitbucket.org/kontroller_test/kontroller_test/pull-requests/14833
+                      - text: "KON-1721: Feature/measure unit 3 chile"
+                  - generic [ref=f1e158]:
+                    - generic [ref=f1e159]: Revisar
+                    - generic [ref=f1e160]: "kontroller_test #14833"
+                    - time [ref=f1e165]: hace 3 min
+                - button "Borrar notificación del PR 14833" [ref=f1e169] [cursor=pointer]
+              - article [ref=f1e173]:
+                - generic [ref=f1e179]:
+                  - paragraph [ref=f1e180]:
+                    - link "Abrir repositorio de María Fernanda de los Ángeles Pérez" [ref=f1e181] [cursor=pointer]:
+                      - /url: https://bitbucket.org/kontroller_test/maria-providers_api
+                      - text: María Fernanda de los Ángeles Pérez
+                    - text: abrió
+                    - 'link "Abrir pull request feat: validar conciliación automática de documentos tributarios pendientes" [ref=f1e185] [cursor=pointer]':
+                      - /url: https://bitbucket.org/kontroller_test/providers_api/pull-requests/921
+                      - text: "feat: validar conciliación automática de documentos tributarios pendientes"
+                  - generic [ref=f1e189]:
+                    - generic [ref=f1e190]: Nuevo PR
+                    - generic [ref=f1e191]: "providers_api #921"
+                    - time [ref=f1e196]: hace 45 min
+                - button "Borrar notificación del PR 921" [ref=f1e200] [cursor=pointer]
+        - button "Abrir configuración" [ref=f1e34] [cursor=pointer]:
+          - generic "Javier Mejías" [ref=f1e35]: JM
+          - generic [ref=f1e36]:
+            - strong [ref=f1e37]: Javier Mejías
+            - generic [ref=f1e38]: Configuración
+    - main [ref=f1e42]:
+      - region [ref=f1e43]:
+        - generic [ref=f1e44]:
+          - text: Bandeja priorizada
+          - heading "Cola de revisión" [level=1] [ref=f1e45]
+          - paragraph [ref=f1e46]: Prioridad y contexto para decidir sin volver a recorrer Bitbucket.
+        - generic "0 requieren tu revisión" [ref=f1e47]:
+          - strong [ref=f1e56]: "0"
+          - generic [ref=f1e57]: requierentu revisión
+      - region "Filtros de la cola" [ref=f1e58]:
+        - generic [ref=f1e59]:
+          - button "Estado Abiertos" [ref=f1e61] [cursor=pointer]:
+            - generic [ref=f1e65]:
+              - generic [ref=f1e66]: Estado
+              - strong [ref=f1e67]: Abiertos
+          - button "Repositorio Todos" [ref=f1e71] [cursor=pointer]:
+            - generic [ref=f1e76]:
+              - generic [ref=f1e77]: Repositorio
+              - strong [ref=f1e78]: Todos
+          - button "QA Necesitan revisión" [ref=f1e82] [cursor=pointer]:
+            - generic [ref=f1e86]:
+              - generic [ref=f1e87]: QA
+              - strong [ref=f1e88]: Necesitan revisión
+        - status [ref=f1e91]:
+          - generic [ref=f1e94]:
+            - strong [ref=f1e95]: "0"
+            - text: resultados
+          - generic [ref=f1e96]: ·Recientes primero
+      - region [ref=f1e97]:
+        - generic [ref=f1e98]:
+          - heading "Prioridad de revisión" [level=2] [ref=f1e99]
+          - generic [ref=f1e100]: Actualizando actividad
+        - generic [ref=f1e106]:
+          - generic [aria-hidden] [ref=f1e107]:
+            - generic [ref=f1e108]: Pull request · relevo
+            - generic [ref=f1e109]: Actividad QA
+            - generic [ref=f1e110]: Acciones
+          - generic [ref=f1e112]:
+            - heading "Conecta tu primer repositorio" [level=3] [ref=f1e118]
+            - paragraph [ref=f1e119]: Agrega un repositorio de Bitbucket para empezar a construir tu cola.
+            - button "Configurar repositorios" [ref=f1e120] [cursor=pointer]
+  - region "Notifications alt+T"

@@ -1,0 +1,7 @@
+[ 7200389ms] Failed to update a ServiceWorker for scope ('http://127.0.0.1:5191/') with script ('http://127.0.0.1:5191/sw.js'): An unknown error occurred when fetching the script.
+[ 8100319ms] Failed to update a ServiceWorker for scope ('http://127.0.0.1:5191/') with script ('http://127.0.0.1:5191/sw.js'): An unknown error occurred when fetching the script.
+[ 9000310ms] Failed to update a ServiceWorker for scope ('http://127.0.0.1:5191/') with script ('http://127.0.0.1:5191/sw.js'): An unknown error occurred when fetching the script.
+[ 9900304ms] Failed to update a ServiceWorker for scope ('http://127.0.0.1:5191/') with script ('http://127.0.0.1:5191/sw.js'): An unknown error occurred when fetching the script.
+[10800307ms] Failed to update a ServiceWorker for scope ('http://127.0.0.1:5191/') with script ('http://127.0.0.1:5191/sw.js'): An unknown error occurred when fetching the script.
+[11700302ms] Failed to update a ServiceWorker for scope ('http://127.0.0.1:5191/') with script ('http://127.0.0.1:5191/sw.js'): An unknown error occurred when fetching the script.
+[12600301ms] Failed to update a ServiceWorker for scope ('http://127.0.0.1:5191/') with script ('http://127.0.0.1:5191/sw.js'): An unknown error occurred when fetching the script.

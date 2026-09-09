@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Download, RefreshCw, Share2, WifiOff, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { registerSW } from 'virtual:pwa-register'
@@ -22,6 +22,7 @@ export default function PwaManager() {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
   const [showIosHint, setShowIosHint] = useState(() => isIosDevice() && !isInstalled() && localStorage.getItem(installHintKey) !== 'true')
   const updateServiceWorkerRef = useRef<UpdateServiceWorker | null>(null)
+  const reduceMotion = useReducedMotion()
 
   useEffect(() => {
     let registration: ServiceWorkerRegistration | undefined
@@ -85,5 +86,69 @@ export default function PwaManager() {
     setShowIosHint(false)
   }
 
-  return <div className="pwa-stack" aria-live="polite"><AnimatePresence initial={false}>{!online && <motion.aside className="pwa-card pwa-offline" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}><span className="pwa-card-icon"><WifiOff size={17} /></span><span><strong>Sin conexión</strong><small>La información de Bitbucket se actualizará cuando vuelva internet.</small></span></motion.aside>}{updateAvailable && <motion.aside className="pwa-card pwa-update" initial={{ opacity: 0, y: 14, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}><span className="pwa-card-icon"><RefreshCw size={17} className={updating ? 'spin' : ''} /></span><span><strong>Nueva versión disponible</strong><small>Ya está descargada y lista para usar.</small></span><button onClick={applyUpdate} disabled={updating}>{updating ? 'Actualizando…' : 'Actualizar ahora'}</button></motion.aside>}{installPrompt && !isInstalled() && <motion.aside className="pwa-card pwa-install" initial={{ opacity: 0, y: 14, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}><span className="pwa-card-icon"><Download size={17} /></span><span><strong>Instalar PR Control</strong><small>Úsala sin pestañas ni controles del navegador.</small></span><button onClick={installApp}>Instalar</button><button className="pwa-close" onClick={() => setInstallPrompt(null)} aria-label="Cerrar sugerencia de instalación"><X size={14} /></button></motion.aside>}{showIosHint && <motion.aside className="pwa-card pwa-install pwa-ios" initial={{ opacity: 0, y: 14, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.98 }}><span className="pwa-card-icon"><Share2 size={17} /></span><span><strong>Instalar en este iPhone</strong><small>Pulsa Compartir y luego “Agregar a inicio”.</small></span><button className="pwa-close" onClick={dismissIosHint} aria-label="Cerrar sugerencia de instalación"><X size={14} /></button></motion.aside>}</AnimatePresence></div>
+  const enterFrom = { opacity: 0, y: reduceMotion ? 0 : 14, scale: reduceMotion ? 1 : 0.98 }
+  const leaveTo = { opacity: 0, y: reduceMotion ? 0 : 8, scale: reduceMotion ? 1 : 0.98 }
+  const transition = { duration: reduceMotion ? 0.01 : 0.18 }
+
+  return (
+    <div className="pwa-stack" aria-live="polite">
+      <AnimatePresence initial={false}>
+        {!online && (
+          <motion.aside
+            className="pwa-card pwa-offline"
+            initial={enterFrom}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={leaveTo}
+            transition={transition}
+          >
+            <span className="pwa-card-icon"><WifiOff size={17} /></span>
+            <span><strong>Sin conexión</strong><small>La información de Bitbucket se actualizará cuando vuelva internet.</small></span>
+          </motion.aside>
+        )}
+
+        {updateAvailable && (
+          <motion.aside
+            className="pwa-card pwa-update"
+            initial={enterFrom}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={leaveTo}
+            transition={transition}
+          >
+            <span className="pwa-card-icon"><RefreshCw size={17} className={updating ? 'spin' : ''} /></span>
+            <span><strong>Nueva versión disponible</strong><small>Ya está descargada y lista para usar.</small></span>
+            <button type="button" onClick={applyUpdate} disabled={updating} aria-busy={updating}>{updating ? 'Actualizando…' : 'Actualizar ahora'}</button>
+          </motion.aside>
+        )}
+
+        {installPrompt && !isInstalled() && (
+          <motion.aside
+            className="pwa-card pwa-install"
+            initial={enterFrom}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={leaveTo}
+            transition={transition}
+          >
+            <span className="pwa-card-icon"><Download size={17} /></span>
+            <span><strong>Instalar PR Control</strong><small>Úsala sin pestañas ni controles del navegador.</small></span>
+            <button type="button" onClick={installApp}>Instalar</button>
+            <button type="button" className="pwa-close" onClick={() => setInstallPrompt(null)} aria-label="Cerrar sugerencia de instalación"><X size={14} /></button>
+          </motion.aside>
+        )}
+
+        {showIosHint && (
+          <motion.aside
+            className="pwa-card pwa-install pwa-ios"
+            initial={enterFrom}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={leaveTo}
+            transition={transition}
+          >
+            <span className="pwa-card-icon"><Share2 size={17} /></span>
+            <span><strong>Instalar en este iPhone</strong><small>Pulsa Compartir y luego “Agregar a inicio”.</small></span>
+            <button type="button" className="pwa-close" onClick={dismissIosHint} aria-label="Cerrar sugerencia de instalación"><X size={14} /></button>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+    </div>
+  )
 }

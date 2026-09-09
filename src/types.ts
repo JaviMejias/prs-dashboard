@@ -9,6 +9,24 @@ export type PrStatus = 'unreviewed' | 'changes' | 'waiting' | 'current' | 'merge
 export type ReviewerState = 'approved' | 'waiting' | 'reviewed' | 'changes'
 export type LifecycleStatus = 'OPEN' | 'DRAFT' | 'QUEUED' | 'MERGED' | 'DECLINED'
 export type PrStats = { commits: number; files: number; added: number; removed: number }
-export type Notice = { id: string; text: string; createdAt: number; read: boolean }
+export type NoticeKind = 'new-pr' | 'review-required'
+export type NoticeAction = 'abrió' | 'actualizó'
+export type Notice = {
+  id: string
+  text: string
+  createdAt: number
+  read: boolean
+  kind: NoticeKind
+  actorName: string
+  actorUrl?: string
+  action: NoticeAction
+  pullRequestTitle: string
+  pullRequestUrl?: string
+  repositoryName: string
+  pullRequestId: number
+  pullRequestKey?: string
+}
+export type NotificationSnapshotEntry = { updatedOn: string; needsReview: boolean }
+export type NotificationSnapshot = Record<string, string | NotificationSnapshotEntry>
 export type NotificationPreferences = { desktop: boolean; sound: boolean; title: boolean }
 export type IgnoreRules = { authors: string[]; pullRequests: string[] }

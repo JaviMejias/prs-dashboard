@@ -1,0 +1,89 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - link "Saltar a la cola" [ref=f3e4] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=f3e5]:
+      - generic [ref=f3e13]:
+        - strong [ref=f3e14]: PR Control Room
+        - generic [ref=f3e15]: Bitbucket review intelligence
+      - generic [ref=f3e16]:
+        - status [ref=f3e17]:
+          - generic [ref=f3e19]:
+            - strong [ref=f3e20]: Conectado
+            - generic [ref=f3e21]: Última lectura 03:28 p. m.
+        - button "Actualizar pull requests" [ref=f3e22] [cursor=pointer]
+        - generic [ref=f3e28]:
+          - button "Notificaciones, 1 sin leer" [expanded] [active] [ref=f3e29] [cursor=pointer]:
+            - generic [ref=f3e33]: "1"
+          - dialog [ref=f3e119]:
+            - generic [ref=f3e120]:
+              - generic [ref=f3e121]:
+                - text: Cola de atención
+                - heading "Notificaciones" [level=2] [ref=f3e122]
+              - generic [ref=f3e123]:
+                - button "Borrar todo" [ref=f3e124] [cursor=pointer]
+                - button "Cerrar notificaciones" [ref=f3e128] [cursor=pointer]
+            - article [ref=f3e133]:
+              - button "Mostrar PR 14833 en la cola, sin leer" [ref=f3e134] [cursor=pointer]
+              - generic:
+                - paragraph:
+                  - link "Abrir repositorio de Carlo Osores Salgado" [ref=f3e135] [cursor=pointer]:
+                    - /url: https://bitbucket.org/kontroller_test/carlo-kontroller_test
+                    - text: Carlo Osores Salgado
+                  - text: actualizó
+                  - 'link "Abrir pull request KON-1721: Feature/measure unit 3 chile" [ref=f3e139] [cursor=pointer]':
+                    - /url: https://bitbucket.org/kontroller_test/kontroller_test/pull-requests/14833
+                    - text: "KON-1721: Feature/measure unit 3 chile"
+                - generic:
+                  - generic: Revisar
+                  - generic: "kontroller_test #14833"
+                  - time: hace 3 min
+                  - generic: Sin leer
+                - generic: Mostrar en la cola
+              - button "Borrar notificación del PR 14833" [ref=f3e143] [cursor=pointer]
+        - button "Abrir configuración" [ref=f3e34] [cursor=pointer]:
+          - generic "Javier Mejías" [ref=f3e35]: JM
+          - generic [ref=f3e36]:
+            - strong [ref=f3e37]: Javier Mejías
+            - generic [ref=f3e38]: Configuración
+    - main [ref=f3e42]:
+      - region [ref=f3e43]:
+        - generic [ref=f3e44]:
+          - text: Bandeja priorizada
+          - heading "Cola de revisión" [level=1] [ref=f3e45]
+          - paragraph [ref=f3e46]: Prioridad y contexto para decidir sin volver a recorrer Bitbucket.
+        - generic "0 requieren tu revisión" [ref=f3e47]:
+          - strong [ref=f3e56]: "0"
+          - generic [ref=f3e57]: requierentu revisión
+      - region "Filtros de la cola" [ref=f3e58]:
+        - generic [ref=f3e59]:
+          - button "Estado Abiertos" [ref=f3e61] [cursor=pointer]:
+            - generic [ref=f3e65]:
+              - generic [ref=f3e66]: Estado
+              - strong [ref=f3e67]: Abiertos
+          - button "Repositorio Todos" [ref=f3e71] [cursor=pointer]:
+            - generic [ref=f3e76]:
+              - generic [ref=f3e77]: Repositorio
+              - strong [ref=f3e78]: Todos
+          - button "QA Necesitan revisión" [ref=f3e82] [cursor=pointer]:
+            - generic [ref=f3e86]:
+              - generic [ref=f3e87]: QA
+              - strong [ref=f3e88]: Necesitan revisión
+        - status [ref=f3e91]:
+          - generic [ref=f3e94]:
+            - strong [ref=f3e95]: "0"
+            - text: resultados
+          - generic [ref=f3e96]: ·Recientes primero
+      - region [ref=f3e97]:
+        - generic [ref=f3e98]:
+          - heading "Prioridad de revisión" [level=2] [ref=f3e99]
+          - generic [ref=f3e100]: Actualizando actividad
+        - generic [ref=f3e106]:
+          - generic [aria-hidden] [ref=f3e107]:
+            - generic [ref=f3e108]: Pull request · relevo
+            - generic [ref=f3e109]: Actividad QA
+            - generic [ref=f3e110]: Acciones
+          - generic [ref=f3e112]:
+            - heading "Tu cola está al día" [level=3] [ref=f3e117]
+            - paragraph [ref=f3e118]: No hay pull requests abiertos que necesiten tu revisión.
+  - region "Notifications alt+T"

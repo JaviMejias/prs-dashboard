@@ -1,0 +1,35 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e3]:
+    - link "Saltar a la cola" [ref=f3e4] [cursor=pointer]:
+      - /url: "#main-content"
+    - banner [ref=f3e5]:
+      - strong [ref=f3e14]: PR Control Room
+      - generic [ref=f3e15]:
+        - button "Actualizar pull requests" [ref=f3e16] [cursor=pointer]
+        - button "Notificaciones" [ref=f3e23] [cursor=pointer]
+        - button "Abrir configuración" [ref=f3e27] [cursor=pointer]:
+          - generic "Javier Mejías" [ref=f3e28]: JM
+    - main [ref=f3e29]:
+      - region [ref=f3e30]:
+        - generic [ref=f3e31]:
+          - text: Bandeja priorizada
+          - heading "Cola de revisión" [level=1] [ref=f3e32]
+          - paragraph [ref=f3e33]: Prioridad y contexto para decidir sin volver a recorrer Bitbucket.
+        - generic "0 requieren tu revisión" [ref=f3e34]:
+          - strong [ref=f3e43]: "0"
+      - region "Filtros de la cola" [ref=f3e44]:
+        - button "Filtros" [ref=f3e45] [cursor=pointer]
+        - status [ref=f3e48]:
+          - generic [ref=f3e49]:
+            - strong [ref=f3e50]: "0"
+            - text: resultados
+          - text: ·
+      - region [ref=f3e51]:
+        - generic [ref=f3e52]:
+          - heading "Prioridad de revisión" [level=2] [ref=f3e53]
+          - generic [ref=f3e54]: Actualizando actividad
+        - generic [ref=f3e62]:
+          - heading "Conecta tu primer repositorio" [level=3] [ref=f3e68]
+          - paragraph [ref=f3e69]: Agrega un repositorio de Bitbucket para empezar a construir tu cola.
+          - button "Configurar repositorios" [ref=f3e70] [cursor=pointer]
+  - region "Notifications alt+T"
