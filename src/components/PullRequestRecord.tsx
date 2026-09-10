@@ -86,7 +86,13 @@ function Stats({ pr, session }: { pr: PullRequest; session: Session }) {
     <div className="pr-stats" aria-label="Estadísticas del pull request">
       <span className="stat-item"><CalendarDays size={15} /><span>Creado</span><strong><span className="date-full">{formatDate(pr.created_on)}</span><span className="date-compact">{compactCreatedDate}</span></strong></span>
       <span className="stat-item"><MessageCircle size={15} /><strong>{pr.comment_count || 0}</strong><span>comentarios</span></span>
-      {query.isLoading && <span className="stats-state" role="status"><span className="inline-loader" /> Cargando actividad técnica…</span>}
+      {query.isLoading && (
+        <span className="stats-state stats-loading" role="status">
+          <span className="inline-loader" />
+          <span>Cargando actividad técnica…</span>
+          <span className="stats-loading-bars" aria-hidden="true"><i /><i /><i /><i /></span>
+        </span>
+      )}
       {query.isError && <span className="stats-state stats-error"><CircleSlash2 size={15} /> No se pudieron cargar los datos técnicos.</span>}
       {query.data && <>
         <span className="stat-item"><GitCommitHorizontal size={15} /><strong>{query.data.commits}</strong><span>commits</span></span>

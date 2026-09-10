@@ -48,6 +48,11 @@ aplicación localiza el PR, ajusta los filtros necesarios, desplaza la cola hast
 si dejó de estar disponible en los datos cargados, se conserva el enlace a
 Bitbucket como vía de recuperación.
 
+Los avisos conservan el evento que los originó, pero su badge refleja el estado
+actual del PR. Cuando queda esperando al autor, revisado, ignorado, en borrador,
+en cola, fusionado o rechazado, el aviso se marca automáticamente como resuelto
+y deja de sumar al contador de notificaciones pendientes.
+
 Una PWA completamente cerrada no puede ejecutar este sondeo frontend. Para
 notificaciones con la aplicación cerrada se necesitaría un servicio de push
 alimentado por webhooks de Bitbucket.

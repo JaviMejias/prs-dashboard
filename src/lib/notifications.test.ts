@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   createPullRequestNotice,
   getActionableNoticeKind,
+  getNoticePresentation,
   getObservedRepositories,
   noticeReferencesPullRequest,
   repositorySnapshotKey,
@@ -13,7 +14,7 @@ const current: NotificationSnapshotEntry = {
   needsReview: true,
 }
 
-function buildPullRequest(): PullRequest {
+function buildPullRequest(overrides: Partial<PullRequest> = {}): PullRequest {
   return {
     id: 14833,
     title: 'KON-1721: Feature/measure unit 3 chile',
@@ -28,6 +29,7 @@ function buildPullRequest(): PullRequest {
     },
     links: { html: { href: 'https://bitbucket.org/kontroller_test/kontroller_test/pull-requests/14833' } },
     repo: { workspace: 'kontroller_test', repo: 'kontroller_test' },
+    ...overrides,
   }
 }
 
@@ -101,5 +103,46 @@ describe('createPullRequestNotice', () => {
     expect(noticeReferencesPullRequest(legacyNotice, pr)).toBe(true)
     expect(noticeReferencesPullRequest({ ...legacyNotice, pullRequestId: 99 }, pr)).toBe(true)
     expect(noticeReferencesPullRequest({ ...legacyNotice, pullRequestUrl: undefined, pullRequestId: 99 }, pr)).toBe(false)
+  })
+})
+
+describe('getNoticePresentation', () => {
+  it('keeps an actionable open notification in its historical state', () => {
+    const pullRequest = buildPullRequest()
+    const notice = createPullRequestNotice(pullRequest, 'new-pr')
+
+    expect(getNoticePresentation(notice, pullRequest, '{reviewer}')).toEqual({
+      tone: 'new-pr',
+      label: 'Nuevo PR',
+      resolved: false,
+    })
+  })
+
+  it('shows the current lifecycle when the pull request was merged', () => {
+    const pullRequest = buildPullRequest()
+    const notice = createPullRequestNotice(pullRequest, 'new-pr')
+
+    expect(getNoticePresentation(notice, { ...pullRequest, state: 'MERGED' }, '{reviewer}')).toMatchObject({
+      tone: 'merged',
+      label: 'Fusionado',
+      resolved: true,
+    })
+  })
+
+  it('resolves the notification when the developer must act next', () => {
+    const pullRequest = buildPullRequest({
+      participants: [{
+        user: { display_name: 'Diego Gustavo Cuevas Montes' },
+        state: 'changes_requested',
+        participated_on: '2026-09-09T13:00:00Z',
+      }],
+    })
+    const notice = createPullRequestNotice(pullRequest, 'review-required')
+
+    expect(getNoticePresentation(notice, pullRequest, '{reviewer}')).toMatchObject({
+      tone: 'waiting',
+      label: 'Esperando al dev',
+      resolved: true,
+    })
   })
 })

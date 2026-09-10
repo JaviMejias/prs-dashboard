@@ -98,6 +98,12 @@ export function isIgnoredPullRequest(pr: PullRequest) {
     || rules.authors.some((item) => normalizeForRule(item) === author)
 }
 
+export function requiresReview(pr: PullRequest, uuid?: string) {
+  if (getLifecycleStatus(pr) !== 'OPEN' || isIgnoredPullRequest(pr)) return false
+  const status = classifyPr(pr, uuid)
+  return status === 'unreviewed' || status === 'changes'
+}
+
 export function getReviewLabel(pr: PullRequest, status: PrStatus) {
   if (isIgnoredPullRequest(pr)) return 'No revisar'
   if (status === 'unreviewed' && isFreshPullRequest(pr)) return 'Nuevo PR'
@@ -105,10 +111,10 @@ export function getReviewLabel(pr: PullRequest, status: PrStatus) {
 }
 
 export function matchesReviewFilter(pr: PullRequest, filter: ReviewFilter, uuid?: string) {
-  if (filter !== 'ALL' && isIgnoredPullRequest(pr)) return false
   if (filter === 'ALL') return true
+  if (filter === 'ATTENTION') return requiresReview(pr, uuid)
+  if (isIgnoredPullRequest(pr)) return false
   const status = classifyPr(pr, uuid)
-  if (filter === 'ATTENTION') return status === 'unreviewed' || status === 'changes'
   if (filter === 'WAITING') return status === 'waiting'
   return status === 'current'
 }

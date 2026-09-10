@@ -165,7 +165,7 @@ Los controles usan 8 px, paneles 12 px y superficies principales 16 px. Los avat
 
 ### Foundational visual states
 
-Todo control interactivo define default, hover, focus-visible y active. Los estados selected combinan contraste, icono y `aria-pressed` o `aria-expanded`. Busy conserva geometría y comunica progreso con icono animado más texto. Error utiliza una alerta persistente con recuperación; loading inicial combina progreso por repositorio y skeletons; background refresh mantiene los datos visibles. Empty distingue cola al día, filtros sin resultados y ausencia de repositorios.
+Todo control interactivo define default, hover, focus-visible y active. Los estados selected combinan contraste, icono y `aria-pressed` o `aria-expanded`. Busy conserva geometría y comunica progreso con icono animado más texto. Error utiliza una alerta persistente con recuperación; loading inicial combina progreso real por repositorio y skeletons que replican las tres zonas de cada registro; background refresh mantiene los datos visibles. A los seis segundos la carga cambia a un mensaje de espera explícito, y la pérdida de red se diferencia de una respuesta lenta de Bitbucket para que el usuario nunca interprete una espera indefinida como un bloqueo silencioso. Empty distingue cola al día, filtros sin resultados y ausencia de repositorios.
 
 ### Buttons and actions
 
@@ -181,7 +181,7 @@ Los badges de ciclo de vida son secundarios. El badge QA y la señal de relevo s
 
 Inputs tienen label visible, 44–48 px de alto, validación propia, estados hover/focus/error y contraste estable. El token secreto ofrece mostrar/ocultar. El diálogo de configuración atrapa foco, cierra con Escape, restaura foco y bloquea el fondo; en móvil ocupa la pantalla. Popovers y paneles no modales cierran al pulsar fuera o Escape.
 
-El centro de notificaciones es una cola de atención, no un historial de toda la actividad. Solo conserva PR nuevos y transiciones en las que vuelve a ser turno del usuario; excluye borradores, PR en cola, estados cerrados y reglas marcadas como “No revisar”. Cada aviso expresa actor, acción y pull request mediante enlaces independientes, icono semántico, referencia técnica y tiempo. Abrir el panel no marca avisos como leídos: la lectura se confirma al seleccionar uno o seguir uno de sus enlaces. Seleccionarlo ajusta el contexto de filtros, desplaza y enfoca el registro con un contorno temporal, nunca con una franja lateral; si el PR cambió de ciclo se comunica su estado real y si dejó de estar cargado se ofrece Bitbucket como recuperación sin afirmar un resultado desconocido. Una ráfaga se agrupa en un único toast y sonido, aunque cada PR se conserva en el panel. La consulta se ejecuta cada 60 segundos mientras la aplicación puede permanecer activa. Los toasts son la capa canónica de feedback transitorio.
+El centro de notificaciones es una cola de atención, no un historial de toda la actividad. Solo crea avisos para PR nuevos y transiciones en las que vuelve a ser turno del usuario; excluye borradores, PR en cola, estados cerrados y reglas marcadas como “No revisar”. Cada aviso expresa actor, acción y pull request mediante enlaces independientes, icono semántico, referencia técnica y tiempo. Abrir el panel no marca avisos como leídos: la lectura se confirma al seleccionar uno o seguir uno de sus enlaces. Si el PR deja de requerir acción, el aviso conserva el hecho histórico pero adopta el estado operativo actual —esperando, revisado, ignorado, borrador, en cola, fusionado o rechazado— y se marca automáticamente como resuelto/leído. Seleccionarlo ajusta el contexto de filtros, desplaza y enfoca el registro con un contorno temporal, nunca con una franja lateral; si el PR cambió de ciclo se comunica su estado real y si dejó de estar cargado se ofrece Bitbucket como recuperación sin afirmar un resultado desconocido. Una ráfaga se agrupa en un único toast y sonido, aunque cada PR se conserva en el panel. La consulta se ejecuta cada 60 segundos mientras la aplicación puede permanecer activa. Los toasts son la capa canónica de feedback transitorio.
 
 ### Iconography
 
@@ -189,7 +189,7 @@ Lucide es la única familia. Se usa trazo estándar sin mezclar iconos filled. T
 
 ### Motion
 
-La interacción usa 100–160 ms y la aparición de contenido 160–240 ms, con desplazamientos de 4–10 px. La curva de sheets es `[0.22, 1, 0.36, 1]`. El movimiento solo comunica apertura, cierre, reordenación, carga o actualización. `prefers-reduced-motion` reduce toda transición a un cambio prácticamente instantáneo; nada esencial depende de animación.
+La interacción usa 100–160 ms y la aparición de contenido 160–240 ms, con desplazamientos de 4–10 px. La curva de sheets es `[0.22, 1, 0.36, 1]`. El movimiento solo comunica apertura, cierre, reordenación, carga o actualización. El estado “cola al día” usa una órbita lenta y tenue como firma de escaneo completado; no aparece en estados de error o filtros y no compite con acciones. `prefers-reduced-motion` reduce toda transición a un cambio prácticamente instantáneo; nada esencial depende de animación.
 
 ### Content and data visualization
 

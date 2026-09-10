@@ -1,7 +1,9 @@
-import { displayName, pullRequestKey } from './dashboard'
+import { classifyPr, getLifecycleStatus } from './bitbucket'
+import { displayName, isIgnoredPullRequest, pullRequestKey, requiresReview } from './dashboard'
 import type {
   Notice,
   NoticeKind,
+  LifecycleStatus,
   NotificationSnapshot,
   NotificationSnapshotEntry,
   PullRequest,
@@ -9,6 +11,22 @@ import type {
 } from '../types'
 
 export const PULL_REQUEST_POLL_INTERVAL_MS = 60_000
+
+export type NoticePresentationTone = NoticeKind
+  | 'waiting'
+  | 'current'
+  | 'ignored'
+  | 'draft'
+  | 'queued'
+  | 'merged'
+  | 'declined'
+
+export type NoticePresentation = {
+  tone: NoticePresentationTone
+  label: string
+  detail?: string
+  resolved: boolean
+}
 
 export function repositoryKey(repo: RepoConfig) {
   return `${repo.workspace}/${repo.repo}`
@@ -74,4 +92,76 @@ export function noticeReferencesPullRequest(notice: Notice, pr: PullRequest) {
   if (notice.pullRequestKey) return notice.pullRequestKey === pullRequestKey(pr)
   if (notice.pullRequestUrl && pr.links?.html?.href) return notice.pullRequestUrl === pr.links.html.href
   return notice.repositoryName === pr.repo.repo && notice.pullRequestId === pr.id
+}
+
+export function getNoticePresentation(
+  notice: Notice,
+  pullRequest?: PullRequest,
+  reviewerUuid?: string,
+): NoticePresentation {
+  const historical: NoticePresentation = {
+    tone: notice.kind,
+    label: notice.kind === 'new-pr' ? 'Nuevo PR' : 'Revisar',
+    resolved: false,
+  }
+
+  if (!pullRequest) return historical
+
+  const lifecycle = getLifecycleStatus(pullRequest)
+  const lifecyclePresentation: Partial<Record<LifecycleStatus, NoticePresentation>> = {
+    DRAFT: {
+      tone: 'draft',
+      label: 'Borrador',
+      detail: 'Ahora es borrador y salió de tu cola de revisión.',
+      resolved: true,
+    },
+    QUEUED: {
+      tone: 'queued',
+      label: 'En cola',
+      detail: 'Ahora está en cola para fusionarse.',
+      resolved: true,
+    },
+    MERGED: {
+      tone: 'merged',
+      label: 'Fusionado',
+      detail: 'El PR ya fue fusionado.',
+      resolved: true,
+    },
+    DECLINED: {
+      tone: 'declined',
+      label: 'Rechazado',
+      detail: 'El PR fue cerrado sin fusionarse.',
+      resolved: true,
+    },
+  }
+
+  const closedPresentation = lifecyclePresentation[lifecycle]
+  if (closedPresentation) return closedPresentation
+  if (requiresReview(pullRequest, reviewerUuid)) return historical
+
+  if (isIgnoredPullRequest(pullRequest)) {
+    return {
+      tone: 'ignored',
+      label: 'No revisar',
+      detail: 'Ahora está fuera de tu cola personal.',
+      resolved: true,
+    }
+  }
+
+  const status = classifyPr(pullRequest, reviewerUuid)
+  if (status === 'waiting') {
+    return {
+      tone: 'waiting',
+      label: 'Esperando al dev',
+      detail: 'Ahora el turno es del autor.',
+      resolved: true,
+    }
+  }
+
+  return {
+    tone: 'current',
+    label: 'Revisado',
+    detail: 'La revisión ya está al día.',
+    resolved: true,
+  }
 }
