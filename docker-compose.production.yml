@@ -28,6 +28,13 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      BITBUCKET_API_BASE_URL: ${BITBUCKET_API_BASE_URL:-https://api.bitbucket.org/2.0}
     command: ["node", "dist/db/migrate.js"]
     depends_on:
       postgres:
