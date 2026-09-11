@@ -21,6 +21,21 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+    command: ["node", "dist/db/migrate.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pr-control-room-network
+    restart: "no"
+
   backend:
     build:
       context: .
@@ -39,8 +54,8 @@ services:
     expose:
       - "8787"
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - proxy
       - pr-control-room-network
@@ -79,6 +94,6 @@ volumes:
 networks:
   proxy:
     external: true
-    name: ${PROXY_NETWORK_NAME:-proxy}
+    name: ${PROXY_NETWORK_NAME:-nginx-proxy-manager_default}
   pr-control-room-network:
     name: pr-control-room-network

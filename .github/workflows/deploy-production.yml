@@ -1,0 +1,26 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Portainer stack redeploy
+        env:
+          PORTAINER_STACK_WEBHOOK: ${{ secrets.PORTAINER_STACK_WEBHOOK }}
+        run: |
+          test -n "$PORTAINER_STACK_WEBHOOK"
+          curl --fail --silent --show-error --retry 3 --retry-all-errors \
+            --request POST "$PORTAINER_STACK_WEBHOOK"

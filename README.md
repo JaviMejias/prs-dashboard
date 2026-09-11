@@ -58,8 +58,9 @@ docker compose -f docker-compose.development.yml run --rm backend node dist/db/m
 ```
 
 La configuración productiva está en `docker-compose.production.yml`. Requiere
-una red Docker externa compartida con Nginx Proxy Manager (por defecto llamada
-`proxy`) y las variables de `server/.env.production.example` cargadas como
+una red Docker externa compartida con Nginx Proxy Manager (en la infraestructura
+actual `nginx-proxy-manager_default`) y las variables de
+`server/.env.production.example` cargadas como
 variables del Stack en Portainer. No publica el backend ni PostgreSQL en el
 host; solo `frontend` y `backend` pertenecen a la red `proxy`, mientras
 PostgreSQL permanece exclusivamente en `pr-control-room-network`.
@@ -67,12 +68,13 @@ PostgreSQL permanece exclusivamente en `pr-control-room-network`.
 Para validar la configuración antes de crear el Stack:
 
 ```bash
-docker network create proxy # solo si todavía no existe
+docker network create nginx-proxy-manager_default # solo si todavía no existe
 docker compose --env-file .env.production -f docker-compose.production.yml config
 ```
 
-Después de levantar el Stack, ejecuta una vez la migración desde la consola de
-Portainer o con Docker:
+El Stack incluye el servicio one-shot `migrate`, que espera a que PostgreSQL
+esté saludable y ejecuta las migraciones antes de iniciar el backend. Para una
+ejecución manual o para recuperar una migración, también puedes usar:
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.production.yml run --rm backend node dist/db/migrate.js
@@ -82,11 +84,27 @@ El volumen `pr_control_room_postgres_data` es persistente y PostgreSQL no tiene
 ningún `ports` publicado. Para actualizar, recrea el Stack con la nueva imagen
 y conserva el volumen; no uses opciones que eliminen volúmenes.
 
+### Despliegue automático desde GitHub
+
+Configura el Stack de producción en Portainer usando este repositorio Git, la
+rama `main` y `docker-compose.production.yml`. En GitOps Updates selecciona
+`Webhook` y copia la URL generada. En GitHub crea un Environment llamado
+`production` y agrega esa URL como secret con el nombre
+`PORTAINER_STACK_WEBHOOK`. El workflow
+`.github/workflows/deploy-production.yml` llamará el webhook en cada push a
+`main`; Portainer hará pull, reconstruirá las imágenes y recreará el Stack. Las
+variables de producción deben seguir configuradas en Portainer, nunca en Git.
+
+El workflow no tiene acceso SSH al servidor. Si el webhook falta o falla, el
+job termina con error y los containers actuales permanecen ejecutándose. La
+concurrencia evita dos redeploys simultáneos.
+
 ### Nginx Proxy Manager y Cloudflare
 
 En Nginx Proxy Manager crea un Proxy Host para `pr.javiermejias.com` con
 Forward Hostname `frontend` y Forward Port `80`. El container de NPM debe estar
-conectado a la misma red Docker externa `proxy`; no uses IPs de containers.
+conectado a la misma red Docker externa `nginx-proxy-manager_default`; no uses
+IPs de containers.
 
 Agrega una Custom Location `/api` apuntando al hostname `backend`, puerto
 `8787`, usando HTTP interno. La ubicación `/api` debe tener prioridad sobre la
