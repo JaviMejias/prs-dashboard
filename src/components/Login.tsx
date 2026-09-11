@@ -30,7 +30,7 @@ export default function Login({ onLogin }: { onLogin: (session: Session) => void
       const draft = { email: email.trim(), token, expiresAt: midnightTomorrow() }
       const user = await verifyUser(draft)
       const session = { ...draft, uuid: user.uuid, displayName: user.display_name }
-      await createBackendSession({ email: draft.email, token: draft.token })
+      await createBackendSession({ email: draft.email, token: draft.token, expiresAt: draft.expiresAt })
       onLogin(session)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo verificar la cuenta.')

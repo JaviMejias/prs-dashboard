@@ -232,8 +232,18 @@ export default function App() {
   const isOnline = useOnlineStatus()
 
   useEffect(() => {
-    // Remove the legacy persisted token now that authentication is server-backed.
-    clearSession()
+    let cancelled = false
+    void fetch('/api/auth/session', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) return null
+        return await response.json() as { user: { id: string; uuid: string; email: string; displayName: string }; expiresAt: number; token: string }
+      })
+      .then((result) => {
+        if (cancelled || !result) return
+        setSession({ email: result.user.email, token: result.token, expiresAt: result.expiresAt, uuid: result.user.uuid, displayName: result.user.displayName })
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {

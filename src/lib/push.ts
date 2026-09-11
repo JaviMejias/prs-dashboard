@@ -9,7 +9,7 @@ const api = async <T>(path: string, init?: RequestInit): Promise<T> => {
   if (!response.ok) throw new Error(data.error ?? `La solicitud falló (${response.status}).`)
   return data
 }
-export const createBackendSession = (credentials: { email: string; token: string }) => api('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) })
+export const createBackendSession = (credentials: { email: string; token: string; expiresAt: number }) => api('/api/auth/login', { method: 'POST', body: JSON.stringify(credentials) })
 const maskEndpoint = (endpoint: string) => { try { const url = new URL(endpoint); return `${url.origin}/…${url.pathname.slice(-12)}` } catch { return 'endpoint inválido' } }
 const applicationServerKey = (key: string) => Uint8Array.from(atob(key.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - key.length % 4) % 4)), (char) => char.charCodeAt(0))
 
