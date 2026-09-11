@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'prompt',
       injectRegister: null,
       includeAssets: ['icons/apple-touch-icon.png', 'icons/pwa-192.png', 'icons/pwa-512.png'],
@@ -28,11 +31,14 @@ export default defineConfig({
           { src: '/icons/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
-        cleanupOutdatedCaches: true,
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
-        navigateFallback: '/index.html',
       },
     }),
   ],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8787',
+    },
+  },
 })

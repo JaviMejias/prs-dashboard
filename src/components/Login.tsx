@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ArrowRight, CheckCircle2, CircleAlert, Eye, EyeOff, GitCommitHorizontal, GitPullRequest, RefreshCw, ShieldCheck, UserRound } from 'lucide-react'
 import { verifyUser } from '../lib/bitbucket'
-import { saveSession } from '../lib/storage'
+import { createBackendSession } from '../lib/push'
 import type { Session } from '../types'
 
 function midnightTomorrow() {
@@ -30,7 +30,7 @@ export default function Login({ onLogin }: { onLogin: (session: Session) => void
       const draft = { email: email.trim(), token, expiresAt: midnightTomorrow() }
       const user = await verifyUser(draft)
       const session = { ...draft, uuid: user.uuid, displayName: user.display_name }
-      saveSession(session)
+      await createBackendSession({ email: draft.email, token: draft.token })
       onLogin(session)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo verificar la cuenta.')
@@ -128,7 +128,7 @@ export default function Login({ onLogin }: { onLogin: (session: Session) => void
             {busy ? <><RefreshCw className="spin" size={17} /> Verificando…</> : <><ShieldCheck size={17} /> Conectar con Bitbucket</>}
           </button>
         </form>
-        <p className="privacy-note"><ShieldCheck size={15} /> El token queda guardado únicamente en este navegador y se envía directamente a Bitbucket.</p>
+        <p className="privacy-note"><ShieldCheck size={15} /> El token se usa en memoria para Bitbucket y la sesión del servidor se mantiene en una cookie HttpOnly.</p>
       </section>
     </main>
   )

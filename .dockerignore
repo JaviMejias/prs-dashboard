@@ -1,0 +1,11 @@
+.git
+.playwright-cli
+node_modules
+dist
+server/node_modules
+server/dist
+server/.env
+server/.env.*
+!server/.env.*.example
+output
+*.log

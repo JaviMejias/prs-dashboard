@@ -1,0 +1,22 @@
+FROM node:20-alpine AS build
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@11.19.0 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY server/package.json server/package.json
+RUN pnpm install --frozen-lockfile
+
+COPY server server
+RUN pnpm --dir server build
+RUN pnpm --filter pr-control-room-server deploy --prod /prod
+COPY server/dist /prod/dist
+COPY server/migrations /prod/migrations
+
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /prod ./
+EXPOSE 8787
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=5 CMD node -e "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "dist/server.js"]

@@ -1,12 +1,14 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { BellRing, Check, GitPullRequest, LogOut, Monitor, Plus, Trash2, Volume2, X } from 'lucide-react'
+import { BellRing, Check, CircleAlert, GitPullRequest, LogOut, Monitor, Plus, RefreshCw, Send, Trash2, Volume2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
 import { PULL_REQUEST_POLL_INTERVAL_MS } from '../lib/notifications'
 import { saveNotificationPreferences, saveRepos } from '../lib/storage'
 import type { NotificationPreferences, RepoConfig } from '../types'
+import { getBrowserPushDiagnostics, getPushServerDiagnostics, sendPushTest, type BrowserPushDiagnostics, type PushServerDiagnostics } from '../lib/push'
+import type { Session } from '../types'
 
 export default function SettingsDialog({
   repos,
@@ -15,6 +17,8 @@ export default function SettingsDialog({
   setPreferences,
   triggerRef,
   requestDesktop,
+  disableDesktop,
+  session,
   testSound,
   onClose,
   onLogout,
@@ -25,15 +29,34 @@ export default function SettingsDialog({
   setPreferences: (preferences: NotificationPreferences) => void
   triggerRef: RefObject<HTMLButtonElement>
   requestDesktop: () => void
+  disableDesktop: () => void
+  session: Session | null
   testSound: () => void
   onClose: () => void
   onLogout: () => void
 }) {
   const [draft, setDraft] = useState<RepoConfig>({ workspace: '', repo: '' })
+  const [browserDiagnostics, setBrowserDiagnostics] = useState<BrowserPushDiagnostics | null>(null)
+  const [serverDiagnostics, setServerDiagnostics] = useState<PushServerDiagnostics | null>(null)
+  const [diagnosticsBusy, setDiagnosticsBusy] = useState(false)
   const dialogRef = useRef<HTMLElement>(null)
   const reduceMotion = useReducedMotion()
   const close = useCallback(onClose, [onClose])
   useModalDialog(true, dialogRef, close, triggerRef)
+
+  const refreshDiagnostics = async () => {
+    setDiagnosticsBusy(true)
+    const [browser, server] = await Promise.allSettled([getBrowserPushDiagnostics(), getPushServerDiagnostics()])
+    if (browser.status === 'fulfilled') setBrowserDiagnostics(browser.value)
+    if (server.status === 'fulfilled') setServerDiagnostics(server.value)
+    setDiagnosticsBusy(false)
+  }
+
+  const testPush = async () => {
+    try { const result = await sendPushTest(); toast.success(`Push enviado a ${result.sent} dispositivo${result.sent === 1 ? '' : 's'}`); await refreshDiagnostics() }
+    catch (reason) { toast.error(reason instanceof Error ? reason.message : 'No se pudo enviar el Push de prueba.') }
+  }
+  useEffect(() => { void refreshDiagnostics() }, [])
 
   const addRepo = () => {
     const repo = { workspace: draft.workspace.trim(), repo: draft.repo.trim() }
@@ -127,10 +150,19 @@ export default function SettingsDialog({
           <section className="settings-section" aria-labelledby="notifications-heading">
             <div className="settings-section-heading"><span className="settings-section-icon"><BellRing size={18} /></span><div><h3 id="notifications-heading">Notificaciones</h3><p>Solo PR nuevos o turnos de revisión · consulta cada {PULL_REQUEST_POLL_INTERVAL_MS / 60_000} min.</p></div></div>
             <div className="preference-list">
-              <div className="preference-row"><span className="preference-icon"><Monitor size={18} /></span><span><strong>Notificaciones del sistema</strong><small>Avisa aunque la pestaña esté en segundo plano.</small></span><div className="preference-controls"><button type="button" className={`switch ${preferences.desktop ? 'is-on' : ''}`} role="switch" aria-label="Notificaciones del sistema" aria-checked={preferences.desktop} onClick={preferences.desktop ? () => togglePreference('desktop') : requestDesktop}><span /></button></div></div>
+              <div className="preference-row"><span className="preference-icon"><Monitor size={18} /></span><span><strong>Notificaciones del sistema</strong><small>Avisa aunque la PWA esté minimizada o cerrada.</small></span><div className="preference-controls"><button type="button" className={`switch ${preferences.desktop ? 'is-on' : ''}`} role="switch" aria-label="Notificaciones del sistema" aria-checked={preferences.desktop} onClick={preferences.desktop ? disableDesktop : requestDesktop}><span /></button></div></div>
               <div className="preference-row"><span className="preference-icon"><Volume2 size={18} /></span><span><strong>Sonido</strong><small>Suena una vez cuando aparece una acción para ti.</small></span><div className="preference-controls"><button type="button" className="text-button test-sound" onClick={testSound}><Volume2 size={15} /> Probar</button><button type="button" className={`switch ${preferences.sound ? 'is-on' : ''}`} role="switch" aria-label="Sonido" aria-checked={preferences.sound} onClick={() => togglePreference('sound')}><span /></button></div></div>
               <div className="preference-row"><span className="preference-icon"><BellRing size={18} /></span><span><strong>Título de la pestaña</strong><small>Muestra el número de novedades sin leer.</small></span><div className="preference-controls"><button type="button" className={`switch ${preferences.title ? 'is-on' : ''}`} role="switch" aria-label="Título de la pestaña" aria-checked={preferences.title} onClick={() => togglePreference('title')}><span /></button></div></div>
             </div>
+          </section>
+
+          <section className="settings-section push-diagnostics" aria-labelledby="push-diagnostics-heading">
+            <div className="settings-section-heading"><span className="settings-section-icon"><CircleAlert size={18} /></span><div><h3 id="push-diagnostics-heading">Diagnóstico Push</h3><p>Verifica el navegador, el Service Worker y los dispositivos registrados.</p></div></div>
+            <div className="diagnostics-actions"><button type="button" className="button button-secondary" onClick={() => void refreshDiagnostics()} disabled={diagnosticsBusy}><RefreshCw size={16} className={diagnosticsBusy ? 'spin' : ''} /> Actualizar diagnóstico</button>{serverDiagnostics?.activeDevices ? <button type="button" className="button button-primary" onClick={() => void testPush()}><Send size={16} /> Enviar Push de prueba</button> : null}</div>
+            {(browserDiagnostics || serverDiagnostics) && <div className="diagnostics-grid">
+              {browserDiagnostics && <div className="diagnostics-card"><strong>Navegador</strong><span>Contexto seguro <b>{browserDiagnostics.secureContext ? 'Sí' : 'No'}</b></span><span>Permiso <b>{browserDiagnostics.notificationPermission}</b></span><span>Push API <b>{browserDiagnostics.pushSupported ? 'Disponible' : 'No disponible'}</b></span><span>Service Worker <b>{browserDiagnostics.serviceWorkerActive ? 'Activo' : 'No activo'}</b></span><span>Scope <b>{browserDiagnostics.scope ?? '—'}</b></span><span>Endpoint <b>{browserDiagnostics.subscription?.endpoint ?? 'Sin suscripción'}</b></span><span>Último Push <b>{browserDiagnostics.lastPushReceivedAt ? new Date(browserDiagnostics.lastPushReceivedAt).toLocaleString('es-CL') : '—'}</b></span></div>}
+              {serverDiagnostics && <div className="diagnostics-card"><strong>Servidor</strong><span>Autenticación <b>{serverDiagnostics.authenticated ? 'Activa' : 'No autenticado'}</b></span><span>Usuario <b>{serverDiagnostics.user?.displayName ?? session?.displayName ?? '—'}</b></span><span>Dispositivos activos <b>{serverDiagnostics.activeDevices}</b></span>{serverDiagnostics.devices.map((device) => <span key={device.id}>{device.device_label ?? 'Dispositivo'} <b>{device.revoked_at ? 'Revocado' : `Visto ${new Date(device.last_seen_at).toLocaleString('es-CL')}`}</b></span>)}</div>}
+            </div>}
           </section>
 
           <section className="settings-section settings-session" aria-labelledby="session-heading">

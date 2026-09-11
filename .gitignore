@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.*.example
+server/.env
+server/.env.*
+!server/.env.*.example

@@ -10,7 +10,10 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:server": "pnpm --dir server dev",
     "build": "tsc -b && vite build",
+    "build:server": "pnpm --dir server build",
+    "db:migrate": "pnpm --dir server db:migrate",
     "preview": "vite preview",
     "test": "vitest run"
   },
@@ -33,6 +36,8 @@
     "vite": "^6.0.5",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^2.1.8",
-    "workbox-window": "^7.4.1"
+    "workbox-window": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1"
   }
 }

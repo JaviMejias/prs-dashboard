@@ -25,6 +25,7 @@ import PullRequestRecord from './components/PullRequestRecord'
 import SettingsDialog from './components/SettingsDialog'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
 import { getLifecycleStatus, getPullRequests } from './lib/bitbucket'
+import { disablePushNotifications, enablePushNotifications } from './lib/push'
 import {
   comparePullRequests,
   displayName,
@@ -50,7 +51,6 @@ import {
   getNotificationPreferences,
   getNotices,
   getRepos,
-  getSession,
   getSnapshot,
   saveNotices,
   saveNotificationPreferences,
@@ -208,10 +208,7 @@ function EmptyQueue({
 }
 
 export default function App() {
-  const [session, setSession] = useState<Session | null>(() => {
-    const value = getSession()
-    return value && value.expiresAt > Date.now() ? value : null
-  })
+  const [session, setSession] = useState<Session | null>(null)
   const [repos, setRepos] = useState<RepoConfig[]>(getRepos)
   const [filterRepo, setFilterRepo] = useState('all')
   const [filterLifecycle, setFilterLifecycle] = useState<LifecycleFilter>('OPEN')
@@ -233,6 +230,11 @@ export default function App() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const pendingLocateRef = useRef<string | null>(null)
   const isOnline = useOnlineStatus()
+
+  useEffect(() => {
+    // Remove the legacy persisted token now that authentication is server-backed.
+    clearSession()
+  }, [])
 
   useEffect(() => {
     if (!session) return
@@ -316,19 +318,13 @@ export default function App() {
   }
 
   const requestDesktop = async () => {
-    if (!('Notification' in window)) {
-      toast.error('Este navegador no soporta notificaciones del sistema.')
-      return
-    }
-    const permission = Notification.permission === 'default'
-      ? await Notification.requestPermission()
-      : Notification.permission
-    if (permission === 'granted') {
-      updatePreferences({ ...preferences, desktop: true })
-      toast.success('Notificaciones del sistema activadas')
-      return
-    }
-    toast.error('El navegador no concedió permiso para las notificaciones.')
+    try { await enablePushNotifications(); updatePreferences({ ...preferences, desktop: true }); toast.success('Notificaciones push activadas') }
+    catch (reason) { toast.error(reason instanceof Error ? reason.message : 'No se pudo registrar este dispositivo.') }
+  }
+
+  const disableDesktop = async () => {
+    try { await disablePushNotifications(); updatePreferences({ ...preferences, desktop: false }); toast.success('Dispositivo revocado') }
+    catch (reason) { toast.error(reason instanceof Error ? reason.message : 'No se pudo revocar este dispositivo.') }
   }
 
   const markNoticeRead = useCallback((id: string) => {
@@ -714,10 +710,13 @@ export default function App() {
             setPreferences={updatePreferences}
             triggerRef={settingsTriggerRef}
             requestDesktop={requestDesktop}
+            disableDesktop={disableDesktop}
+            session={session}
             testSound={testSound}
             onClose={closeSettings}
             onLogout={() => {
               clearSession()
+              void fetch('/api/auth/session', { method: 'DELETE', credentials: 'include' })
               setSession(null)
             }}
           />

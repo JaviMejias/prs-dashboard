@@ -1,0 +1,84 @@
+name: pr-control-room
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    expose:
+      - "5432"
+    volumes:
+      - pr_control_room_postgres_data:/var/lib/postgresql/data
+    networks:
+      - pr-control-room-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-8787}
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      VAPID_SUBJECT: ${VAPID_SUBJECT}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      BITBUCKET_API_BASE_URL: ${BITBUCKET_API_BASE_URL:-https://api.bitbucket.org/2.0}
+    expose:
+      - "8787"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - proxy
+      - pr-control-room-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    expose:
+      - "80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - proxy
+      - pr-control-room-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  pr_control_room_postgres_data:
+    name: pr_control_room_postgres_data
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK_NAME:-proxy}
+  pr-control-room-network:
+    name: pr-control-room-network

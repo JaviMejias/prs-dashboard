@@ -28,11 +28,92 @@ Para instalarla desde otro dispositivo, especialmente un celular, debe estar
 publicada mediante HTTPS. `localhost` funciona como excepción únicamente en el
 mismo dispositivo donde se ejecuta el servidor.
 
-La aplicación no usa backend. El correo Atlassian, API token, repositorios,
-snapshot de actividad y notificaciones se guardan en `localStorage` del
-navegador. El token se envía únicamente a `api.bitbucket.org` mediante Basic
-Auth. Para crear el token usa los scopes `account:read`, `repository:read` y
-`pullrequest:read`.
+La Fase 1 incorpora un backend Fastify en `server/` para identidad, sesiones
+HttpOnly y Web Push. El API token se usa en memoria para las consultas actuales
+de Bitbucket y no se persiste en `localStorage`; la sesión del backend no
+contiene el token. Para crear el token usa los scopes `account:read`,
+`repository:read` y `pullrequest:read`.
+
+### Backend y Push
+
+Requisitos: Node 20+, pnpm 11+ y PostgreSQL. Copia `server/.env.example` a
+`server/.env`, completa `DATABASE_URL`, `SESSION_SECRET` y las claves VAPID,
+y ejecuta:
+
+```bash
+pnpm install
+pnpm db:migrate
+pnpm dev:server
+```
+
+## Docker
+
+Hay dos Compose separados. Desarrollo conserva puertos únicamente en
+loopback y usa su propio volumen:
+
+```bash
+cp server/.env.development.example server/.env.development
+docker compose -f docker-compose.development.yml up --build -d
+docker compose -f docker-compose.development.yml run --rm backend node dist/db/migrate.js
+```
+
+La configuración productiva está en `docker-compose.production.yml`. Requiere
+una red Docker externa compartida con Nginx Proxy Manager (por defecto llamada
+`proxy`) y las variables de `server/.env.production.example` cargadas como
+variables del Stack en Portainer. No publica el backend ni PostgreSQL en el
+host; solo `frontend` y `backend` pertenecen a la red `proxy`, mientras
+PostgreSQL permanece exclusivamente en `pr-control-room-network`.
+
+Para validar la configuración antes de crear el Stack:
+
+```bash
+docker network create proxy # solo si todavía no existe
+docker compose --env-file .env.production -f docker-compose.production.yml config
+```
+
+Después de levantar el Stack, ejecuta una vez la migración desde la consola de
+Portainer o con Docker:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.production.yml run --rm backend node dist/db/migrate.js
+```
+
+El volumen `pr_control_room_postgres_data` es persistente y PostgreSQL no tiene
+ningún `ports` publicado. Para actualizar, recrea el Stack con la nueva imagen
+y conserva el volumen; no uses opciones que eliminen volúmenes.
+
+### Nginx Proxy Manager y Cloudflare
+
+En Nginx Proxy Manager crea un Proxy Host para `pr.javiermejias.com` con
+Forward Hostname `frontend` y Forward Port `80`. El container de NPM debe estar
+conectado a la misma red Docker externa `proxy`; no uses IPs de containers.
+
+Agrega una Custom Location `/api` apuntando al hostname `backend`, puerto
+`8787`, usando HTTP interno. La ubicación `/api` debe tener prioridad sobre la
+ubicación `/`. Solicita el certificado Let's Encrypt en NPM, activa Force SSL y
+usa HTTP/2 si está disponible.
+
+En Cloudflare usa SSL/TLS `Full (strict)`. No uses `Flexible`. Evita cachear
+`/api/*`, `/sw.js` y `/manifest.webmanifest`; el Service Worker necesita poder
+comprobar actualizaciones. El origen debe permitir salida HTTPS hacia Bitbucket
+y los proveedores Web Push.
+
+En otra terminal ejecuta `pnpm dev`. Vite proxifica `/api` al backend en el
+puerto 8787. La sección Diagnóstico Push de Configuración registra y revoca
+dispositivos, muestra el estado de ambos lados y permite enviar un Push de
+prueba. El backend elimina lógicamente suscripciones que respondan 404/410.
+
+Genera las claves VAPID con:
+
+```bash
+pnpm --dir server exec web-push generate-vapid-keys
+```
+
+La private key solo vive en `server/.env`; la public key se entrega mediante
+`GET /api/push/vapid-public-key`. Para probar Android, abre la PWA desde HTTPS
+(o una URL de túnel HTTPS), inicia sesión, instálala, concede permisos y activa
+Notificaciones del sistema. Repite en PC: el diagnóstico debe mostrar dos
+dispositivos. Pulsa Enviar Push de prueba y minimiza/cierra Android.
 
 ## Sincronización y notificaciones
 
@@ -53,6 +134,7 @@ actual del PR. Cuando queda esperando al autor, revisado, ignorado, en borrador,
 en cola, fusionado o rechazado, el aviso se marca automáticamente como resuelto
 y deja de sumar al contador de notificaciones pendientes.
 
-Una PWA completamente cerrada no puede ejecutar este sondeo frontend. Para
-notificaciones con la aplicación cerrada se necesitaría un servicio de push
-alimentado por webhooks de Bitbucket.
+El polling sigue siendo exclusivamente una actualización de la interfaz cada
+60 segundos. El Push de Fase 1 funciona de forma independiente mediante el
+Service Worker incluso con la PWA cerrada, pero todavía solo existe el evento
+de prueba; los webhooks y las reglas de Bitbucket quedan para la Fase 2.
