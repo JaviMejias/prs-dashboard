@@ -4424,6 +4424,55 @@ input:focus-visible,
   .setup-command-row code { font-size: .6rem; }
 }
 
+/* Final responsive pass for overlays: readable content before compactness. */
+.notification-panel { width: min(500px, calc(100vw - 28px)); }
+.notification-item { grid-template-columns: 42px minmax(0, 1fr) 36px; gap: 15px; padding: 17px 14px 17px 18px; }
+.notification-icon { width: 42px; height: 42px; }
+.notification-content { gap: 12px; padding-top: 1px; }
+.notification-copy { max-width: 42ch; line-height: 1.58; }
+.notification-meta { gap: 7px 14px; line-height: 1.35; }
+.notification-resolution { display: block; padding: .45rem .55rem; border-left: 2px solid var(--line-strong); background: rgb(255 255 255 / 2%); }
+.notification-locate-label { padding-top: 1px; }
+.pwa-card { gap: 14px; padding: 14px 15px; }
+.pwa-card > span:nth-child(2) { gap: 5px; line-height: 1.45; }
+.pwa-card strong { line-height: 1.3; }
+.pwa-card small { line-height: 1.55; }
+.pwa-install { padding-right: 47px; }
+.pwa-install > button:not(.pwa-close) { margin-right: 0; }
+
+@media (max-width: 560px) {
+  .notification-panel { top: calc(58px + env(safe-area-inset-top)); right: 8px; left: 8px; width: auto; border-radius: 14px; }
+  .overlay-heading { min-height: 66px; padding: 13px 13px 11px 15px; gap: 10px; }
+  .overlay-heading-actions { gap: 4px; }
+  .overlay-heading-actions .text-button { min-height: 32px; padding: .35rem .45rem; font-size: .62rem; }
+  .notification-item { grid-template-columns: 38px minmax(0, 1fr) 32px; gap: 12px; min-height: 0; padding: 15px 9px 16px 13px; }
+  .notification-icon { width: 38px; height: 38px; border-radius: 9px; }
+  .notification-content { gap: 10px; }
+  .notification-copy { font-size: 12px; line-height: 1.6; }
+  .notification-meta { align-items: flex-start; gap: 6px 9px; font-size: 9px; }
+  .notification-meta > span, .notification-meta time { min-height: 20px; }
+  .notification-kind { padding: 0 6px; }
+  .notification-resolution { font-size: 10px; }
+  .notification-locate-label { font-size: 10px; }
+  .notification-delete { width: 32px; height: 32px; }
+  .pwa-stack { gap: 8px; }
+  .pwa-card { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: start; gap: 10px 12px; min-height: 0; padding: 13px 45px 13px 12px; }
+  .pwa-card-icon { width: 36px; height: 36px; }
+  .pwa-card > span:nth-child(2) { min-width: 0; padding-top: 1px; }
+  .pwa-card > button:not(.pwa-close) { grid-column: 2; justify-self: start; min-height: 34px; margin: 1px 0 0; padding: 0 10px; font-size: 10px; }
+  .pwa-install { padding-right: 45px; }
+  .pwa-close { top: 6px; right: 6px; }
+}
+
+@media (max-width: 360px) {
+  .notification-item { grid-template-columns: 34px minmax(0, 1fr) 30px; gap: 9px; padding-left: 10px; padding-right: 7px; }
+  .notification-icon { width: 34px; height: 34px; }
+  .notification-copy { font-size: 11px; }
+  .notification-meta { font-size: 8px; }
+  .pwa-card { grid-template-columns: 32px minmax(0, 1fr); gap: 9px; padding-left: 10px; padding-right: 40px; }
+  .pwa-card-icon { width: 32px; height: 32px; }
+}
+
 .setup-view, .setup-guide, .setup-repository-list, .setup-authors-panel, .setup-author-table,
 .setup-repository-card, .setup-repository-body, .setup-author-list, .setup-author-row,
 .setup-author-command, .setup-command-row { min-width: 0; max-width: 100%; box-sizing: border-box; }
