@@ -1,16 +1,14 @@
 import { useCallback, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { BellRing, Check, GitPullRequest, LogOut, Monitor, Plus, Trash2, Volume2, X } from 'lucide-react'
+import { BellRing, Check, LogOut, Monitor, Volume2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
 import { PULL_REQUEST_POLL_INTERVAL_MS } from '../lib/notifications'
-import { saveNotificationPreferences, saveRepos } from '../lib/storage'
-import type { NotificationPreferences, RepoConfig } from '../types'
+import { saveNotificationPreferences } from '../lib/storage'
+import type { NotificationPreferences } from '../types'
 
 export default function SettingsDialog({
-  repos,
-  setRepos,
   preferences,
   setPreferences,
   triggerRef,
@@ -19,8 +17,6 @@ export default function SettingsDialog({
   onClose,
   onLogout,
 }: {
-  repos: RepoConfig[]
-  setRepos: (repos: RepoConfig[]) => void
   preferences: NotificationPreferences
   setPreferences: (preferences: NotificationPreferences) => void
   triggerRef: RefObject<HTMLButtonElement>
@@ -29,45 +25,10 @@ export default function SettingsDialog({
   onClose: () => void
   onLogout: () => void
 }) {
-  const [draft, setDraft] = useState<RepoConfig>({ workspace: '', repo: '' })
   const dialogRef = useRef<HTMLElement>(null)
   const reduceMotion = useReducedMotion()
   const close = useCallback(onClose, [onClose])
   useModalDialog(true, dialogRef, close, triggerRef)
-
-  const addRepo = () => {
-    const repo = { workspace: draft.workspace.trim(), repo: draft.repo.trim() }
-    if (!repo.workspace || !repo.repo) {
-      toast.error('Completa el workspace y el repositorio.')
-      return
-    }
-    if (repos.some((item) => `${item.workspace}/${item.repo}`.toLocaleLowerCase() === `${repo.workspace}/${repo.repo}`.toLocaleLowerCase())) {
-      toast.error('Ese repositorio ya está agregado.')
-      return
-    }
-    const next = [...repos, repo]
-    setRepos(next)
-    saveRepos(next)
-    setDraft({ workspace: '', repo: '' })
-    toast.success(`${repo.repo} agregado`, { description: 'Ya forma parte de la cola monitorizada.' })
-  }
-
-  const removeRepo = (index: number) => {
-    const previous = repos
-    const removed = repos[index]
-    const next = repos.filter((_, itemIndex) => itemIndex !== index)
-    setRepos(next)
-    saveRepos(next)
-    toast.success(`${removed.repo} dejó de monitorizarse`, {
-      action: {
-        label: 'Deshacer',
-        onClick: () => {
-          setRepos(previous)
-          saveRepos(previous)
-        },
-      },
-    })
-  }
 
   const togglePreference = (key: keyof NotificationPreferences) => {
     if (key === 'sound' && !preferences.sound) {
@@ -106,24 +67,6 @@ export default function SettingsDialog({
         </header>
 
         <div className="settings-body">
-          <section className="settings-section" aria-labelledby="repos-heading">
-            <div className="settings-section-heading"><span className="settings-section-icon"><GitPullRequest size={18} /></span><div><h3 id="repos-heading">Repositorios monitorizados</h3><p>Controla qué repositorios alimentan tu cola.</p></div></div>
-            <div className="repo-list">
-              {repos.length ? repos.map((repo, index) => (
-                <div className="repo-item" key={`${repo.workspace}/${repo.repo}`}>
-                  <span className="repo-item-icon"><GitPullRequest size={16} /></span>
-                  <span><small>{repo.workspace}</small><strong>{repo.repo}</strong></span>
-                  <button type="button" className="icon-button" onClick={() => removeRepo(index)} aria-label={`Dejar de monitorizar ${repo.repo}`}><Trash2 size={17} /></button>
-                </div>
-              )) : <p className="settings-list-empty">Todavía no hay repositorios monitorizados.</p>}
-            </div>
-            <form className="add-repo-form" noValidate onSubmit={(event) => { event.preventDefault(); addRepo() }}>
-              <label className="field" htmlFor="repo-workspace"><span>Workspace</span><input id="repo-workspace" value={draft.workspace} onChange={(event) => setDraft({ ...draft, workspace: event.target.value })} placeholder="kontroller_test" /></label>
-              <label className="field" htmlFor="repo-slug"><span>Repositorio</span><input id="repo-slug" value={draft.repo} onChange={(event) => setDraft({ ...draft, repo: event.target.value })} placeholder="providers_api" /></label>
-              <button className="button button-secondary" type="submit"><Plus size={16} /> Agregar</button>
-            </form>
-          </section>
-
           <section className="settings-section" aria-labelledby="notifications-heading">
             <div className="settings-section-heading"><span className="settings-section-icon"><BellRing size={18} /></span><div><h3 id="notifications-heading">Notificaciones</h3><p>Solo PR nuevos o turnos de revisión · consulta cada {PULL_REQUEST_POLL_INTERVAL_MS / 60_000} min.</p></div></div>
             <div className="preference-list">

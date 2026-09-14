@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pr-control-room.invalid/schemas/review-context.schema.json",
+  "title": "PR Control Room review context",
+  "$ref": "domain.schema.json#/$defs/reviewContext"
+}

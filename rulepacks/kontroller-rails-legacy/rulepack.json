@@ -1,0 +1,10 @@
+{
+  "id": "kontroller-rails-legacy",
+  "name": "Kontroller Rails Legacy",
+  "version": "1.0.0",
+  "description": "Contexto de revisión para el monolito Rails legado de Kontroller.",
+  "reviewRules": "review-rules.md",
+  "testing": "testing.md",
+  "references": [],
+  "source": "git"
+}

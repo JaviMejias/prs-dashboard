@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pr-control-room.invalid/schemas/machine.schema.json",
+  "title": "PR Control Room local machine metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repositories"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "repositories": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/localMachineRepository" } }
+  }
+}

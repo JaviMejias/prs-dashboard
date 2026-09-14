@@ -1,0 +1,16 @@
+{
+  "id": "kontroller-official",
+  "name": "Reglas oficiales de revisión de Kontroller",
+  "version": "1.0.0",
+  "description": "Fuentes oficiales locales utilizadas para revisar Pull Requests de Kontroller.",
+  "reviewRules": "sources/agents.md",
+  "references": [
+    "sources/kontroller-test-qa.md",
+    "sources/kontroller-conventions.md",
+    "sources/pull-request-review.md",
+    "sources/legacy-javascript.md",
+    "sources/javier-code-style.md",
+    "sources/ruby-rails-development.md"
+  ],
+  "source": "git"
+}

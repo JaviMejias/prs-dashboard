@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pr-control-room.invalid/schemas/portable-export.schema.json",
+  "title": "PR Control Room portable configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "application", "exportedAt", "repositories", "rulepackMappings"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "application": { "type": "string", "const": "pr-control-room" },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "repositories": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/repository" } },
+    "authors": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/author" } },
+    "aliases": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/authorAlias" } },
+    "ignoreRules": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/ignoreRule" } },
+    "preferences": { "$ref": "domain.schema.json#/$defs/preferences" },
+    "rulepacks": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/rulepack" } },
+    "rulepackMappings": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/repositoryRulepackMapping" } }
+  }
+}

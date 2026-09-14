@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pr-control-room.invalid/schemas/domain.schema.json",
+  "$defs": {
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspace", "slug"],
+      "properties": {
+        "id": { "type": "string" },
+        "workspace": { "type": "string" },
+        "slug": { "type": "string" },
+        "name": { "type": "string" },
+        "cloneUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
+        "defaultBranch": { "type": "string" },
+        "friendlyName": { "type": "string" },
+        "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } },
+        "ruleRefs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "rulepackRefs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "enabled": { "type": "boolean", "default": true }
+      }
+    },
+    "repositoryTechnology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "version", "kind"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "kind": { "type": "string", "enum": ["language", "framework", "library"] }
+      }
+    },
+    "author": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName"],
+      "properties": {
+        "id": { "type": "string" },
+        "displayName": { "type": "string" },
+        "providerUsername": { "type": "string" },
+        "providerUuid": { "type": "string" },
+        "avatarUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "authorAlias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authorId", "alias", "source"],
+      "properties": {
+        "authorId": { "type": "string" },
+        "alias": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "enum": ["suggested", "user"] },
+        "repositoryIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "ignoreRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "value", "enabled"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["author", "repository", "pullRequest"] },
+        "value": { "type": "string" },
+        "reason": { "type": "string" },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "preferences": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "notificationMode": { "type": "string", "enum": ["all", "actionable", "none"] },
+        "soundEnabled": { "type": "boolean" },
+        "desktopNotificationsEnabled": { "type": "boolean" },
+        "theme": { "type": "string", "enum": ["dark", "light", "system"] }
+      }
+    },
+    "rulepack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "version"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["general", "technology", "framework", "project"] },
+        "technology": { "type": "string" },
+        "scope": { "type": "string", "enum": ["global", "project", "repository"] },
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "reviewRules": { "type": "string", "minLength": 1 },
+        "testing": { "type": "string", "minLength": 1 },
+        "references": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "source": { "type": "string", "enum": ["git", "local"] }
+      }
+    },
+    "repositoryRulepackMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryId", "rulepackId"],
+      "properties": {
+        "repositoryId": { "type": "string" },
+        "rulepackId": { "type": "string" },
+        "version": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "priority": { "type": "integer", "minimum": 0 },
+        "overrides": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "reviewContextCommit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hash", "message"],
+      "properties": {
+        "hash": { "type": "string" }, "message": { "type": "string" },
+        "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "reviewContextFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string" }, "status": { "type": "string" },
+        "additions": { "type": "integer", "minimum": 0 }, "deletions": { "type": "integer", "minimum": 0 },
+        "changeType": { "type": "string" }
+      }
+    },
+    "reviewContextComment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content"],
+      "properties": {
+        "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" },
+        "content": { "type": "string" }, "path": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 }, "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "reviewContextActivity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "date", "summary"],
+      "properties": {
+        "type": { "type": "string", "enum": ["created", "updated", "comment", "approval", "changes"] },
+        "date": { "type": "string", "format": "date-time" }, "actor": { "type": "string" }, "summary": { "type": "string" }
+      }
+    },
+    "reviewContextDiffstat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "additions", "deletions", "totalChanges"],
+      "properties": {
+        "files": { "type": "integer", "minimum": 0 }, "additions": { "type": "integer", "minimum": 0 },
+        "deletions": { "type": "integer", "minimum": 0 }, "totalChanges": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reviewContextReviewState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isNew", "requiresReview", "isRevisit", "status"],
+      "properties": {
+        "isNew": { "type": "boolean" }, "requiresReview": { "type": "boolean" }, "isRevisit": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["unreviewed", "changes", "waiting", "current", "merged", "declined"] },
+        "lastRelevantActivity": { "$ref": "#/$defs/reviewContextActivity" }
+      }
+    },
+    "reviewContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "repository", "pullRequest", "reviewState", "commits", "changedFiles", "diffstat", "comments", "activity", "unavailable"],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "repository": {
+          "type": "object", "additionalProperties": false, "required": ["workspace", "repository"],
+          "properties": { "workspace": { "type": "string" }, "repository": { "type": "string" }, "friendlyName": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } } }
+        },
+        "pullRequest": {
+          "type": "object", "additionalProperties": false, "required": ["id", "title", "state", "draft", "createdAt", "updatedAt"],
+          "properties": {
+            "id": { "type": "integer" }, "title": { "type": "string" }, "description": { "type": "string" },
+            "state": { "type": "string", "enum": ["OPEN", "DRAFT", "QUEUED", "MERGED", "DECLINED"] }, "draft": { "type": "boolean" },
+            "author": { "type": "object", "additionalProperties": false, "properties": { "name": { "type": "string" }, "uuid": { "type": "string" }, "url": { "type": "string", "format": "uri" } } },
+            "sourceBranch": { "type": "string" }, "targetBranch": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" },
+            "url": { "type": "string", "format": "uri" }
+          }
+        },
+        "reviewState": { "$ref": "#/$defs/reviewContextReviewState" },
+        "commits": { "type": "array", "items": { "$ref": "#/$defs/reviewContextCommit" } },
+        "changedFiles": { "type": "array", "items": { "$ref": "#/$defs/reviewContextFile" } },
+        "diffstat": { "$ref": "#/$defs/reviewContextDiffstat" },
+        "comments": { "type": "array", "items": { "$ref": "#/$defs/reviewContextComment" } },
+        "activity": { "type": "array", "items": { "$ref": "#/$defs/reviewContextActivity" } },
+        "unavailable": { "type": "array", "items": { "type": "string" } },
+        "rulepacks": { "type": "array", "items": { "$ref": "#/$defs/appliedRulepack" } },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/appliedReviewRule" } }
+      }
+    },
+    "appliedReviewRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "category", "description", "content", "source", "reference"],
+      "properties": {
+        "id": { "type": "string" }, "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["general", "technology", "framework", "project"] },
+        "description": { "type": "string" }, "version": { "type": "string" },
+        "technology": { "type": "string" }, "content": { "type": "string" },
+        "source": { "type": "string", "enum": ["git", "local"] },
+        "sources": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "rulepackId": { "type": "string" }, "reference": { "type": "string" }
+      }
+    },
+    "appliedRulepack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "version", "description", "reviewRules", "reviewRulesContent", "referenceContents", "source"],
+      "properties": {
+        "id": { "type": "string" }, "name": { "type": "string" }, "version": { "type": "string" },
+        "description": { "type": "string" }, "reviewRules": { "type": "string" }, "testing": { "type": "string" },
+        "references": { "type": "array", "items": { "type": "string" } }, "source": { "type": "string", "enum": ["git", "local"] },
+        "reviewRulesContent": { "type": "string" }, "testingContent": { "type": "string" },
+        "referenceContents": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["path", "content"], "properties": { "path": { "type": "string" }, "content": { "type": "string" } } } }
+      }
+    },
+    "localMachineRepository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryId"],
+      "properties": {
+        "repositoryId": { "type": "string" },
+        "localPath": { "type": "string" },
+        "currentBranch": { "type": "string" },
+        "headSha": { "type": "string" },
+        "mergeBaseSha": { "type": "string" },
+        "workingTreeState": { "type": "string", "enum": ["clean", "dirty", "unknown"] },
+        "lastVerifiedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

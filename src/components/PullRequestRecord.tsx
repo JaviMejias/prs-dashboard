@@ -17,6 +17,7 @@ import {
   GitCommitHorizontal,
   GitCompareArrows,
   GitMerge,
+  FileJson,
   Copy,
   MessageCircle,
   Minus,
@@ -44,6 +45,7 @@ import {
 } from '../lib/dashboard'
 import { getIgnoreRules, saveIgnoreRules } from '../lib/storage'
 import { buildGitReviewInstruction, getGitRemotesCommand } from '../lib/gitWorkflow'
+import ReviewContextDialog from './ReviewContextDialog'
 import type { GitWorkflowSettings, IgnoreRules, PrStatus, PullRequest, ReviewerState, Session } from '../types'
 
 const statusIcons = {
@@ -268,6 +270,7 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
   const [workflowOpen, setWorkflowOpen] = useState(false)
   const [remoteEditorOpen, setRemoteEditorOpen] = useState(false)
   const [remoteDraft, setRemoteDraft] = useState('')
+  const [contextOpen, setContextOpen] = useState(false)
   const status = classifyPr(pr, session.uuid)
   const lifecycle = getLifecycleStatus(pr)
   const ignored = isIgnoredPullRequest(pr)
@@ -363,6 +366,7 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
               {!instruction.sourceRemote && <div className="inline-remote-editor">{remoteEditorOpen ? <form onSubmit={(event) => { event.preventDefault(); saveAuthorRemote() }}><label htmlFor={`remote-${pr.id}`}>Remoto de {authorName}</label><div><input id={`remote-${pr.id}`} autoFocus value={remoteDraft} onChange={(event) => setRemoteDraft(event.target.value)} placeholder="cosores" /><button type="submit" className="button button-secondary">Guardar</button><button type="button" className="text-button" onClick={() => setRemoteEditorOpen(false)}>Cancelar</button></div></form> : <button type="button" className="instruction-configure" onClick={() => setRemoteEditorOpen(true)}>Asignar remoto local para {authorName}</button>}</div>}
               {!instruction.isComplete && instruction.sourceRemote && <button type="button" className="instruction-configure" onClick={onOpenSettings}>Configura el remoto destino para completar esta instrucción</button>}
               <div className="instruction-actions">
+                <button type="button" className="instruction-context" onClick={() => setContextOpen(true)}><FileJson size={14} /> Ver contexto</button>
                 <button type="button" className="instruction-copy" onClick={() => { void navigator.clipboard?.writeText(instruction.text); toast.success('Instrucción copiada') }}><Copy size={14} /> Copiar instrucción</button>
                 <button type="button" className={`sync-check${gitWorkflowSettings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => onGitWorkflowSettingsChange({ ...gitWorkflowSettings, syncRemotesConfirmed: !gitWorkflowSettings.syncRemotesConfirmed })} aria-pressed={gitWorkflowSettings.syncRemotesConfirmed}><span>{gitWorkflowSettings.syncRemotesConfirmed ? '✓' : ''}</span> Remotos actualizados</button>
                 {!gitWorkflowSettings.syncRemotesConfirmed && <button type="button" className="sync-command" onClick={() => { void navigator.clipboard?.writeText(getGitRemotesCommand()); toast.success('Comando copiado') }}>Copiar git sync-remotes</button>}
@@ -382,6 +386,7 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
       <aside className="pr-reviewers" aria-label="Revisores"><span className="column-kicker">Revisores</span><ReviewerPopover pr={pr} session={session} /></aside>
       <div className="pr-actions"><PullRequestMenu pr={pr} /></div>
       <Stats pr={pr} session={session} />
+      <AnimatePresence>{contextOpen && <ReviewContextDialog pr={pr} session={session} onClose={() => setContextOpen(false)} />}</AnimatePresence>
     </motion.article>
   )
 })

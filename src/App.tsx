@@ -175,7 +175,7 @@ function EmptyQueue({
         <span className="empty-kicker">Sin fuentes conectadas</span>
         <h3>Conecta tu primer repositorio</h3>
         <p>Agrega un repositorio de Bitbucket para empezar a construir tu cola.</p>
-        <button type="button" className="button button-primary" onClick={onConfigure}><Settings2 size={17} /> Configurar repositorios</button>
+        <button type="button" className="button button-primary" onClick={onConfigure}><GitBranch size={17} /> Preparar repositorios</button>
       </div>
     )
   }
@@ -710,7 +710,7 @@ export default function App() {
             <div className="queue-columns" aria-hidden="true"><span>Pull request · relevo</span><span>Actividad QA</span><span>Acciones</span></div>
             <div className="pr-list" aria-busy={initialLoading && !allPrs.length}>
               <AnimatePresence mode="popLayout">
-                {visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={updateGitWorkflowSettings} onOpenSettings={() => setShowSettings(true)} />)}
+                {visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={updateGitWorkflowSettings} onOpenSettings={() => setActiveView('authors')} />)}
               </AnimatePresence>
               {initialLoading && !allPrs.length && <><PullRequestSkeleton /><PullRequestSkeleton /><PullRequestSkeleton /></>}
               {!initialLoading && !sortedPrs.length && (
@@ -720,7 +720,7 @@ export default function App() {
                   filterReview={filterReview}
                   hasLoadError={errors.length > 0 && allPrs.length === 0}
                   onReset={resetFilters}
-                  onConfigure={() => setShowSettings(true)}
+                  onConfigure={() => setActiveView('authors')}
                   onRetry={refresh}
                 />
               )}
@@ -732,7 +732,7 @@ export default function App() {
             </button>
           )}
         </section>
-        </> : activeView === 'summary' ? <SummaryView prs={allPrs} session={session} /> : <AuthorsView prs={allPrs} repos={repos} settings={gitWorkflowSettings} onChange={updateGitWorkflowSettings} />}
+        </> : activeView === 'summary' ? <SummaryView prs={allPrs} session={session} /> : <AuthorsView prs={allPrs} repos={repos} setRepos={setRepos} settings={gitWorkflowSettings} onChange={updateGitWorkflowSettings} />}
       </main>
 
       <nav className="mobile-bottom-nav" aria-label="Navegación principal">
@@ -745,8 +745,6 @@ export default function App() {
       <AnimatePresence>
         {showSettings && (
           <SettingsDialog
-            repos={repos}
-            setRepos={setRepos}
             preferences={preferences}
             setPreferences={updatePreferences}
             triggerRef={settingsTriggerRef}
