@@ -4059,6 +4059,31 @@ input:focus-visible,
 .git-review-instruction-heading { color: #8fe2bf; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .instruction-mode { margin-left: auto; color: #eab36b; font-size: .62rem; letter-spacing: .04em; }
 .git-review-instruction p { margin: .4rem 0 .65rem; color: #e9f5f0; font-size: .82rem; line-height: 1.5; }
+.git-review-instruction-toggle { display: flex; width: 100%; align-items: center; gap: .7rem; border: 0; padding: 0; color: inherit; background: none; cursor: pointer; text-align: left; }
+.git-review-instruction-toggle:focus-visible { outline: 2px solid #77d9b0; outline-offset: 5px; border-radius: 5px; }
+.instruction-preview { margin-left: auto; color: #9eb9b0; font-size: .7rem; }
+.git-review-instruction-toggle > svg { flex: 0 0 auto; color: #8ba59d; transition: transform .18s ease; }
+.git-review-instruction-toggle > svg.rotate { transform: rotate(180deg); }
+.git-review-instruction-details { overflow: hidden; padding-top: .8rem; }
+.git-review-instruction-details p { margin-top: 0; }
+.git-review-instruction { margin-top: 1rem; padding: .75rem 1rem; }
+.git-review-instruction-toggle { min-height: 2rem; }
+.git-review-instruction-heading { display: inline-flex; align-items: center; gap: .65rem; letter-spacing: 0; text-transform: none; }
+.instruction-icon { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border: 1px solid rgba(143, 226, 191, .24); border-radius: 8px; color: #9be8c4; background: rgba(7, 35, 29, .5); }
+.git-review-instruction-heading > span:last-child { display: grid; gap: .1rem; }
+.git-review-instruction-heading small { color: #71978a; font-size: .55rem; font-weight: 700; letter-spacing: .13em; line-height: 1; }
+.git-review-instruction-heading strong { color: #d8ebe4; font-size: .78rem; font-weight: 700; line-height: 1.2; }
+.instruction-preview { padding: .28rem .5rem; border: 1px solid rgba(143, 226, 191, .16); border-radius: 999px; color: #9eb9b0; font-size: .63rem; line-height: 1; }
+.git-review-instruction.is-incomplete .instruction-preview { border-color: rgba(235, 174, 92, .24); color: #eab36b; }
+.git-review-instruction-details { margin-top: .8rem; border-top: 1px solid rgba(143, 226, 191, .12); padding-top: .9rem; }
+.workflow-route { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: .7rem; }
+.workflow-endpoint { display: grid; min-width: 0; gap: .25rem; padding: .65rem .7rem; border: 1px solid rgba(130, 164, 153, .16); border-radius: 8px; background: rgba(2, 14, 13, .28); }
+.workflow-endpoint small { color: #71978a; font-size: .56rem; font-weight: 700; letter-spacing: .12em; }
+.workflow-endpoint strong { overflow: hidden; color: #e7f3ee; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.workflow-endpoint code { overflow: hidden; color: #9be8c4; font-family: 'IBM Plex Mono', monospace; font-size: .67rem; text-overflow: ellipsis; white-space: nowrap; }
+.workflow-route-arrow { color: #77d9b0; font-size: 1.1rem; }
+.workflow-instruction-copy { margin: .8rem 0 .75rem !important; padding-left: .75rem; border-left: 2px solid #6bd2a5; color: #bcd3ca !important; font-size: .76rem !important; line-height: 1.55 !important; }
+.instruction-actions { gap: .85rem; padding-top: .7rem; border-top: 1px solid rgba(143, 226, 191, .1); }
 .instruction-actions { flex-wrap: wrap; }
 .instruction-copy, .sync-check, .sync-command, .instruction-configure { border: 0; background: transparent; color: #9eb9b0; cursor: pointer; font: inherit; font-size: .7rem; }
 .instruction-copy { display: inline-flex; align-items: center; gap: .35rem; color: #9be8c4; font-weight: 700; }
@@ -4085,6 +4110,11 @@ input:focus-visible,
 @media (max-width: 680px) {
   .git-review-instruction { margin-top: .9rem; padding: .75rem; }
   .instruction-mode { margin-left: .25rem; }
+  .instruction-preview { max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .git-review-instruction { padding: .65rem .75rem; }
+  .workflow-route { grid-template-columns: 1fr; gap: .35rem; }
+  .workflow-route-arrow { justify-self: center; transform: rotate(90deg); }
+  .workflow-endpoint { padding: .55rem .6rem; }
   .git-command-help { align-items: flex-start; flex-direction: column; gap: .4rem; }
   .mapping-add { align-items: stretch; flex-direction: column; }
   .mapping-add .button { justify-content: center; }

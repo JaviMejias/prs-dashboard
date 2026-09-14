@@ -265,6 +265,7 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
   ref,
 ) {
   const reduceMotion = useReducedMotion()
+  const [workflowOpen, setWorkflowOpen] = useState(false)
   const status = classifyPr(pr, session.uuid)
   const lifecycle = getLifecycleStatus(pr)
   const ignored = isIgnoredPullRequest(pr)
@@ -331,15 +332,28 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
           </span>
         </div>
 
-        <div className={`git-review-instruction${instruction.isComplete ? '' : ' is-incomplete'}`}>
-          <div className="git-review-instruction-heading"><GitBranch size={15} /><span>Flujo local sugerido</span>{instruction.isRevisit && <span className="instruction-mode">Revisión de seguimiento</span>}</div>
-          <p>{instruction.text}</p>
-          {!instruction.isComplete && <button type="button" className="instruction-configure" onClick={onOpenSettings}>Configura los remotos para completar esta instrucción</button>}
-          <div className="instruction-actions">
-            <button type="button" className="instruction-copy" onClick={() => { void navigator.clipboard?.writeText(instruction.text); toast.success('Instrucción copiada') }}><Copy size={14} /> Copiar instrucción</button>
-            <button type="button" className={`sync-check${gitWorkflowSettings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => onGitWorkflowSettingsChange({ ...gitWorkflowSettings, syncRemotesConfirmed: !gitWorkflowSettings.syncRemotesConfirmed })} aria-pressed={gitWorkflowSettings.syncRemotesConfirmed}><span>{gitWorkflowSettings.syncRemotesConfirmed ? '✓' : ''}</span> Remotos actualizados</button>
-            {!gitWorkflowSettings.syncRemotesConfirmed && <button type="button" className="sync-command" onClick={() => { void navigator.clipboard?.writeText(getGitRemotesCommand()); toast.success('Comando copiado') }}>Copiar git sync-remotes</button>}
-          </div>
+        <div className={`git-review-instruction${instruction.isComplete ? '' : ' is-incomplete'}${workflowOpen ? ' is-open' : ''}`}>
+          <button type="button" className="git-review-instruction-toggle" aria-expanded={workflowOpen} onClick={() => setWorkflowOpen((open) => !open)}>
+            <span className="git-review-instruction-heading"><span className="instruction-icon"><GitBranch size={15} /></span><span><small>REVISIÓN LOCAL</small><strong>Guía de revisión</strong></span></span>
+            <span className="instruction-preview">{instruction.isRevisit ? 'Revisión de seguimiento' : 'Lista para revisar'}</span>
+            <ChevronDown size={16} className={workflowOpen ? 'rotate' : ''} />
+          </button>
+          <AnimatePresence initial={false}>
+            {workflowOpen && <motion.div className="git-review-instruction-details" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: reduceMotion ? 0.08 : 0.18 }}>
+              <div className="workflow-route" aria-label="Ruta de revisión local">
+                <div className="workflow-endpoint"><small>DESDE</small><strong>{instruction.sourceRemote || 'Remoto no configurado'}</strong><code>{instruction.sourceBranch}</code></div>
+                <span className="workflow-route-arrow" aria-hidden="true">→</span>
+                <div className="workflow-endpoint"><small>HACIA</small><strong>{instruction.targetRemote || 'Remoto no configurado'}</strong><code>{instruction.targetBranch}</code></div>
+              </div>
+              <p className="workflow-instruction-copy">{instruction.text}</p>
+              {!instruction.isComplete && <button type="button" className="instruction-configure" onClick={onOpenSettings}>Configura los remotos para completar esta instrucción</button>}
+              <div className="instruction-actions">
+                <button type="button" className="instruction-copy" onClick={() => { void navigator.clipboard?.writeText(instruction.text); toast.success('Instrucción copiada') }}><Copy size={14} /> Copiar instrucción</button>
+                <button type="button" className={`sync-check${gitWorkflowSettings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => onGitWorkflowSettingsChange({ ...gitWorkflowSettings, syncRemotesConfirmed: !gitWorkflowSettings.syncRemotesConfirmed })} aria-pressed={gitWorkflowSettings.syncRemotesConfirmed}><span>{gitWorkflowSettings.syncRemotesConfirmed ? '✓' : ''}</span> Remotos actualizados</button>
+                {!gitWorkflowSettings.syncRemotesConfirmed && <button type="button" className="sync-command" onClick={() => { void navigator.clipboard?.writeText(getGitRemotesCommand()); toast.success('Comando copiado') }}>Copiar git sync-remotes</button>}
+              </div>
+            </motion.div>}
+          </AnimatePresence>
         </div>
 
         <div className={`handoff-signal handoff-${ignored ? 'ignored' : status}`}>
