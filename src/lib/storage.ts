@@ -1,5 +1,5 @@
-import type { IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, Session } from '../types'
-const keys = { session: 'prcr:session', repos: 'prcr:repos', notices: 'prcr:notices', snapshot: 'prcr:snapshot', notificationPreferences: 'prcr:notification-preferences', ignoreRules: 'prcr:ignore-rules' }
+import type { GitWorkflowSettings, IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, Session } from '../types'
+const keys = { session: 'prcr:session', repos: 'prcr:repos', notices: 'prcr:notices', snapshot: 'prcr:snapshot', notificationPreferences: 'prcr:notification-preferences', ignoreRules: 'prcr:ignore-rules', gitWorkflow: 'prcr:git-workflow' }
 export const initialRepos: RepoConfig[] = [{ workspace: 'kontroller_test', repo: 'kontroller_test' }, { workspace: 'kontroller_test', repo: 'providers_api' }]
 const uniqueRepos = (repos: RepoConfig[]) => Array.from(new Map(repos.map((repo) => [`${repo.workspace}/${repo.repo}`.toLocaleLowerCase(), repo])).values())
 export function getJson<T>(key: string, fallback: T): T { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback } catch { return fallback } }
@@ -35,3 +35,16 @@ export const saveNotificationPreferences = (preferences: NotificationPreferences
 export const defaultIgnoreRules: IgnoreRules = { authors: [], pullRequests: [] }
 export const getIgnoreRules = () => getJson<IgnoreRules>(keys.ignoreRules, defaultIgnoreRules)
 export const saveIgnoreRules = (rules: IgnoreRules) => saveJson(keys.ignoreRules, rules)
+export const defaultGitWorkflowSettings: GitWorkflowSettings = {
+  developerRemotes: [
+    { id: 'carlo-osores', displayName: 'Carlo Osores Salgado', remote: 'cosores' },
+    { id: 'cristopher-guzman', displayName: 'Cristopher Guzmán', remote: 'cristopher' },
+    { id: 'jayro-guerrero', displayName: 'Jayro Guerrero', remote: 'jayro' },
+    { id: 'ricardo-gutierrez', displayName: 'Ricardo Gutiérrez', remote: 'origin' },
+    { id: 'byron-obregon', displayName: 'Byron Obregón', remote: 'origin' },
+  ],
+  repositoryRemotes: [{ id: 'kontroller-test', repository: 'kontroller_test/kontroller_test', remote: 'origin' }],
+  syncRemotesConfirmed: false,
+}
+export const getGitWorkflowSettings = () => getJson<GitWorkflowSettings>(keys.gitWorkflow, defaultGitWorkflowSettings)
+export const saveGitWorkflowSettings = (settings: GitWorkflowSettings) => saveJson(keys.gitWorkflow, settings)

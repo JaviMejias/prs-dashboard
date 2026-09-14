@@ -48,15 +48,17 @@ import {
   clearSession,
   defaultNotificationPreferences,
   getNotificationPreferences,
+  getGitWorkflowSettings,
   getNotices,
   getRepos,
   getSession,
   getSnapshot,
   saveNotices,
   saveNotificationPreferences,
+  saveGitWorkflowSettings,
   saveSnapshot,
 } from './lib/storage'
-import type { LifecycleStatus, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, Session } from './types'
+import type { GitWorkflowSettings, LifecycleStatus, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, Session } from './types'
 
 const locatedFeedback: Record<LifecycleStatus, {
   title: string
@@ -222,6 +224,7 @@ export default function App() {
     ...defaultNotificationPreferences,
     ...getNotificationPreferences(),
   }))
+  const [gitWorkflowSettings, setGitWorkflowSettings] = useState<GitWorkflowSettings>(() => getGitWorkflowSettings())
   const [showNotices, setShowNotices] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [highlightedPrKey, setHighlightedPrKey] = useState<string | null>(null)
@@ -233,6 +236,11 @@ export default function App() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const pendingLocateRef = useRef<string | null>(null)
   const isOnline = useOnlineStatus()
+
+  const updateGitWorkflowSettings = useCallback((settings: GitWorkflowSettings) => {
+    setGitWorkflowSettings(settings)
+    saveGitWorkflowSettings(settings)
+  }, [])
 
   useEffect(() => {
     if (!session) return
@@ -681,7 +689,7 @@ export default function App() {
             <div className="queue-columns" aria-hidden="true"><span>Pull request · relevo</span><span>Actividad QA</span><span>Acciones</span></div>
             <div className="pr-list" aria-busy={initialLoading && !allPrs.length}>
               <AnimatePresence mode="popLayout">
-                {visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} />)}
+                {visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={updateGitWorkflowSettings} onOpenSettings={() => setShowSettings(true)} />)}
               </AnimatePresence>
               {initialLoading && !allPrs.length && <><PullRequestSkeleton /><PullRequestSkeleton /><PullRequestSkeleton /></>}
               {!initialLoading && !sortedPrs.length && (
@@ -712,6 +720,8 @@ export default function App() {
             setRepos={setRepos}
             preferences={preferences}
             setPreferences={updatePreferences}
+            gitWorkflowSettings={gitWorkflowSettings}
+            setGitWorkflowSettings={updateGitWorkflowSettings}
             triggerRef={settingsTriggerRef}
             requestDesktop={requestDesktop}
             testSound={testSound}

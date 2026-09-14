@@ -17,6 +17,7 @@ import {
   GitCommitHorizontal,
   GitCompareArrows,
   GitMerge,
+  Copy,
   MessageCircle,
   Minus,
   Plus,
@@ -42,7 +43,8 @@ import {
   trackedReviewers,
 } from '../lib/dashboard'
 import { getIgnoreRules, saveIgnoreRules } from '../lib/storage'
-import type { IgnoreRules, PrStatus, PullRequest, ReviewerState, Session } from '../types'
+import { buildGitReviewInstruction, getGitRemotesCommand } from '../lib/gitWorkflow'
+import type { GitWorkflowSettings, IgnoreRules, PrStatus, PullRequest, ReviewerState, Session } from '../types'
 
 const statusIcons = {
   unreviewed: ScanEye,
@@ -258,8 +260,8 @@ function PullRequestMenu({ pr }: { pr: PullRequest }) {
   )
 }
 
-const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Session; highlighted?: boolean }>(function PullRequestRecord(
-  { pr, session, highlighted = false },
+const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Session; highlighted?: boolean; gitWorkflowSettings: GitWorkflowSettings; onGitWorkflowSettingsChange: (settings: GitWorkflowSettings) => void; onOpenSettings: () => void }>(function PullRequestRecord(
+  { pr, session, highlighted = false, gitWorkflowSettings, onGitWorkflowSettingsChange, onOpenSettings },
   ref,
 ) {
   const reduceMotion = useReducedMotion()
@@ -271,6 +273,7 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
   const handoff = getHandoffMessage(pr, status)
   const authorName = displayName(pr.author?.display_name || pr.author?.nickname)
   const sourceRepositoryUrl = pr.source?.repository?.links?.html?.href
+  const instruction = buildGitReviewInstruction(pr, session, gitWorkflowSettings)
   const titleId = `pr-${pr.repo.repo}-${pr.id}`
 
   const openPullRequest = () => {
@@ -326,6 +329,17 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
             <b>→</b>
             <span>{pr.destination?.branch?.name || '?'}</span>
           </span>
+        </div>
+
+        <div className={`git-review-instruction${instruction.isComplete ? '' : ' is-incomplete'}`}>
+          <div className="git-review-instruction-heading"><GitBranch size={15} /><span>Flujo local sugerido</span>{instruction.isRevisit && <span className="instruction-mode">Revisión de seguimiento</span>}</div>
+          <p>{instruction.text}</p>
+          {!instruction.isComplete && <button type="button" className="instruction-configure" onClick={onOpenSettings}>Configura los remotos para completar esta instrucción</button>}
+          <div className="instruction-actions">
+            <button type="button" className="instruction-copy" onClick={() => { void navigator.clipboard?.writeText(instruction.text); toast.success('Instrucción copiada') }}><Copy size={14} /> Copiar instrucción</button>
+            <button type="button" className={`sync-check${gitWorkflowSettings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => onGitWorkflowSettingsChange({ ...gitWorkflowSettings, syncRemotesConfirmed: !gitWorkflowSettings.syncRemotesConfirmed })} aria-pressed={gitWorkflowSettings.syncRemotesConfirmed}><span>{gitWorkflowSettings.syncRemotesConfirmed ? '✓' : ''}</span> Remotos actualizados</button>
+            {!gitWorkflowSettings.syncRemotesConfirmed && <button type="button" className="sync-command" onClick={() => { void navigator.clipboard?.writeText(getGitRemotesCommand()); toast.success('Comando copiado') }}>Copiar git sync-remotes</button>}
+          </div>
         </div>
 
         <div className={`handoff-signal handoff-${ignored ? 'ignored' : status}`}>
