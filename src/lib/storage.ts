@@ -40,11 +40,15 @@ export const defaultGitWorkflowSettings: GitWorkflowSettings = {
     { id: 'carlo-osores', displayName: 'Carlo Osores Salgado', remote: 'cosores' },
     { id: 'cristopher-guzman', displayName: 'Cristopher Guzmán', remote: 'cristopher' },
     { id: 'jayro-guerrero', displayName: 'Jayro Guerrero', remote: 'jayro' },
-    { id: 'ricardo-gutierrez', displayName: 'Ricardo Gutiérrez', remote: 'origin' },
-    { id: 'byron-obregon', displayName: 'Byron Obregón', remote: 'origin' },
+    { id: 'ricardo-gutierrez', displayName: 'Ricardo Gutiérrez', remote: '' },
+    { id: 'byron-obregon', displayName: 'Byron Obregón', remote: '' },
   ],
   repositoryRemotes: [{ id: 'kontroller-test', repository: 'kontroller_test/kontroller_test', remote: 'origin' }],
   syncRemotesConfirmed: false,
 }
-export const getGitWorkflowSettings = () => getJson<GitWorkflowSettings>(keys.gitWorkflow, defaultGitWorkflowSettings)
+export const getGitWorkflowSettings = () => {
+  const settings = getJson<GitWorkflowSettings>(keys.gitWorkflow, defaultGitWorkflowSettings)
+  const targetRemotes = new Set(settings.repositoryRemotes.map((item) => item.remote.trim().toLocaleLowerCase()).filter(Boolean))
+  return { ...settings, developerRemotes: settings.developerRemotes.map((item) => targetRemotes.has(item.remote.trim().toLocaleLowerCase()) ? { ...item, remote: '' } : item) }
+}
 export const saveGitWorkflowSettings = (settings: GitWorkflowSettings) => saveJson(keys.gitWorkflow, settings)

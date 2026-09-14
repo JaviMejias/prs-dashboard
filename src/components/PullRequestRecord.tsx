@@ -266,6 +266,8 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
 ) {
   const reduceMotion = useReducedMotion()
   const [workflowOpen, setWorkflowOpen] = useState(false)
+  const [remoteEditorOpen, setRemoteEditorOpen] = useState(false)
+  const [remoteDraft, setRemoteDraft] = useState('')
   const status = classifyPr(pr, session.uuid)
   const lifecycle = getLifecycleStatus(pr)
   const ignored = isIgnoredPullRequest(pr)
@@ -275,6 +277,18 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
   const authorName = displayName(pr.author?.display_name || pr.author?.nickname)
   const sourceRepositoryUrl = pr.source?.repository?.links?.html?.href
   const instruction = buildGitReviewInstruction(pr, session, gitWorkflowSettings)
+  const saveAuthorRemote = () => {
+    const remote = remoteDraft.trim()
+    if (!remote) return toast.error('Escribe el nombre del remoto local.')
+    const author = authorName
+    const existing = gitWorkflowSettings.developerRemotes.find((item) => item.displayName.trim().toLocaleLowerCase() === author.trim().toLocaleLowerCase())
+    const developerRemotes = existing
+      ? gitWorkflowSettings.developerRemotes.map((item) => item.id === existing.id ? { ...item, remote } : item)
+      : [...gitWorkflowSettings.developerRemotes, { id: `inline-${Date.now()}`, displayName: author, remote }]
+    onGitWorkflowSettingsChange({ ...gitWorkflowSettings, developerRemotes })
+    setRemoteEditorOpen(false)
+    toast.success(`Remoto de ${author} configurado`)
+  }
   const titleId = `pr-${pr.repo.repo}-${pr.id}`
 
   const openPullRequest = () => {
@@ -346,7 +360,8 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
                 <div className="workflow-endpoint"><small>HACIA</small><strong>{instruction.targetRemote || 'Remoto no configurado'}</strong><code>{instruction.targetBranch}</code></div>
               </div>
               <p className="workflow-instruction-copy">{instruction.text}</p>
-              {!instruction.isComplete && <button type="button" className="instruction-configure" onClick={onOpenSettings}>Configura los remotos para completar esta instrucción</button>}
+              {!instruction.sourceRemote && <div className="inline-remote-editor">{remoteEditorOpen ? <form onSubmit={(event) => { event.preventDefault(); saveAuthorRemote() }}><label htmlFor={`remote-${pr.id}`}>Remoto de {authorName}</label><div><input id={`remote-${pr.id}`} autoFocus value={remoteDraft} onChange={(event) => setRemoteDraft(event.target.value)} placeholder="cosores" /><button type="submit" className="button button-secondary">Guardar</button><button type="button" className="text-button" onClick={() => setRemoteEditorOpen(false)}>Cancelar</button></div></form> : <button type="button" className="instruction-configure" onClick={() => setRemoteEditorOpen(true)}>Asignar remoto local para {authorName}</button>}</div>}
+              {!instruction.isComplete && instruction.sourceRemote && <button type="button" className="instruction-configure" onClick={onOpenSettings}>Configura el remoto destino para completar esta instrucción</button>}
               <div className="instruction-actions">
                 <button type="button" className="instruction-copy" onClick={() => { void navigator.clipboard?.writeText(instruction.text); toast.success('Instrucción copiada') }}><Copy size={14} /> Copiar instrucción</button>
                 <button type="button" className={`sync-check${gitWorkflowSettings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => onGitWorkflowSettingsChange({ ...gitWorkflowSettings, syncRemotesConfirmed: !gitWorkflowSettings.syncRemotesConfirmed })} aria-pressed={gitWorkflowSettings.syncRemotesConfirmed}><span>{gitWorkflowSettings.syncRemotesConfirmed ? '✓' : ''}</span> Remotos actualizados</button>

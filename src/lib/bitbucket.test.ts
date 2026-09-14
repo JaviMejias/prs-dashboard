@@ -86,6 +86,18 @@ describe('classifyPr', () => {
     expect(classifyPr(pullRequest, myUuid)).toBe('changes')
   })
 
+  it('does not treat a later QA comment as a developer code change', () => {
+    const pullRequest = buildPullRequest({
+      updated_on: '2026-09-08T12:02:00Z',
+      activity: [
+        { pull_request: { id: 42 }, comment: { created_on: '2026-09-08T11:01:00Z', user: { uuid: myUuid } } },
+        { pull_request: { id: 42 }, comment: { created_on: '2026-09-08T12:02:00Z', user: { uuid: '{other-qa}' } } },
+      ],
+    })
+
+    expect(classifyPr(pullRequest, myUuid)).toBe('current')
+  })
+
   it('waits for the developer when another reviewer requested changes last', () => {
     const pullRequest = buildPullRequest({
       participants: [{ user: { display_name: 'Diego Gustavo Cuevas Montes' }, state: 'changes_requested', participated_on: '2026-09-08T13:00:00Z' }],

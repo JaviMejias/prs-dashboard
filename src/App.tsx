@@ -7,6 +7,7 @@ import {
   CircleAlert,
   CircleSlash2,
   FilePenLine,
+  GitBranch,
   GitMerge,
   GitPullRequest,
   LocateFixed,
@@ -23,6 +24,8 @@ import Login from './components/Login'
 import NotificationPanel from './components/NotificationPanel'
 import PullRequestRecord from './components/PullRequestRecord'
 import SettingsDialog from './components/SettingsDialog'
+import SummaryView from './components/SummaryView'
+import AuthorsView from './components/AuthorsView'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
 import { getLifecycleStatus, getPullRequests } from './lib/bitbucket'
 import {
@@ -59,6 +62,8 @@ import {
   saveSnapshot,
 } from './lib/storage'
 import type { GitWorkflowSettings, LifecycleStatus, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, Session } from './types'
+
+type AppView = 'queue' | 'summary' | 'authors'
 
 const locatedFeedback: Record<LifecycleStatus, {
   title: string
@@ -227,6 +232,7 @@ export default function App() {
   const [gitWorkflowSettings, setGitWorkflowSettings] = useState<GitWorkflowSettings>(() => getGitWorkflowSettings())
   const [showNotices, setShowNotices] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [activeView, setActiveView] = useState<AppView>('queue')
   const [highlightedPrKey, setHighlightedPrKey] = useState<string | null>(null)
   const [ignoreRevision, setIgnoreRevision] = useState(0)
   const [loadingIsSlow, setLoadingIsSlow] = useState(false)
@@ -278,6 +284,15 @@ export default function App() {
       .flatMap((query) => query.data || [])
       .map((pr) => [`${pr.repo.workspace}/${pr.repo.repo}#${pr.id}`, pr]),
   ).values()), [queries])
+  const detectedAuthors = useMemo(() => {
+    const authors = new Map<string, { name: string; count: number }>()
+    allPrs.forEach((pr) => {
+      const name = displayName(pr.author?.display_name || pr.author?.nickname)
+      const key = name.toLocaleLowerCase()
+      authors.set(key, { name, count: (authors.get(key)?.count || 0) + 1 })
+    })
+    return Array.from(authors.values()).sort((first, second) => second.count - first.count || first.name.localeCompare(second.name))
+  }, [allPrs])
   const noticePresentations = useMemo(() => new Map(notices.map((notice) => {
     const pullRequest = allPrs.find((pr) => noticeReferencesPullRequest(notice, pr))
     return [notice.id, getNoticePresentation(notice, pullRequest, session?.uuid)]
@@ -615,6 +630,11 @@ export default function App() {
             <span className="brand-copy"><strong>PR Control Room</strong><small>Bitbucket review intelligence</small></span>
           </div>
         </div>
+        <nav className="desktop-nav" aria-label="Navegación principal">
+          <button type="button" className={activeView === 'queue' ? 'is-active' : ''} onClick={() => setActiveView('queue')}><GitPullRequest size={15} /> Cola{reviewCount > 0 && <b>{reviewCount}</b>}</button>
+          <button type="button" className={activeView === 'summary' ? 'is-active' : ''} onClick={() => setActiveView('summary')}><ScanEye size={15} /> Resumen</button>
+          <button type="button" className={activeView === 'authors' ? 'is-active' : ''} onClick={() => setActiveView('authors')}><GitBranch size={15} /> Preparar</button>
+        </nav>
         <div className="topbar-actions">
           <div className={`sync-status ${fetching && isOnline ? 'is-syncing' : ''} ${!isOnline || allRepositoriesFailed ? 'has-error' : errors.length > 0 && !fetching ? 'has-warning' : ''}`} role="status">
             <span className="sync-dot" />
@@ -630,6 +650,7 @@ export default function App() {
       </header>
 
       <main id="main-content" className="content">
+        {activeView === 'queue' ? <>
         <section className="queue-intro" aria-labelledby="queue-title">
           <div><span className="section-kicker">Bandeja priorizada</span><h1 id="queue-title">Cola de revisión</h1><p>Prioridad y contexto para decidir sin volver a recorrer Bitbucket.</p></div>
           <div className="attention-summary" aria-label={`${reviewCount} ${reviewCount === 1 ? 'requiere' : 'requieren'} tu revisión`}><span className="attention-icon"><ScanEye size={20} /></span><strong>{reviewCount}</strong><span>{reviewCount === 1 ? 'requiere' : 'requieren'}<br />tu revisión</span></div>
@@ -711,7 +732,15 @@ export default function App() {
             </button>
           )}
         </section>
+        </> : activeView === 'summary' ? <SummaryView prs={allPrs} session={session} /> : <AuthorsView prs={allPrs} repos={repos} settings={gitWorkflowSettings} onChange={updateGitWorkflowSettings} />}
       </main>
+
+      <nav className="mobile-bottom-nav" aria-label="Navegación principal">
+        <button type="button" className={activeView === 'queue' ? 'is-active' : ''} onClick={() => setActiveView('queue')}><GitPullRequest size={19} /><span>Cola</span>{reviewCount > 0 && <b>{reviewCount}</b>}</button>
+        <button type="button" className={activeView === 'summary' ? 'is-active' : ''} onClick={() => setActiveView('summary')}><ScanEye size={19} /><span>Resumen</span></button>
+        <button type="button" className={activeView === 'authors' ? 'is-active' : ''} onClick={() => setActiveView('authors')}><GitBranch size={19} /><span>Preparar</span></button>
+        <button type="button" onClick={() => setShowSettings(true)}><Settings2 size={19} /><span>Más</span></button>
+      </nav>
 
       <AnimatePresence>
         {showSettings && (
@@ -720,8 +749,6 @@ export default function App() {
             setRepos={setRepos}
             preferences={preferences}
             setPreferences={updatePreferences}
-            gitWorkflowSettings={gitWorkflowSettings}
-            setGitWorkflowSettings={updateGitWorkflowSettings}
             triggerRef={settingsTriggerRef}
             requestDesktop={requestDesktop}
             testSound={testSound}

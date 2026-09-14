@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.*.example
+server/.env
+server/.env.*
+!server/.env.*.example
+
+# Generated dependencies and build output
+node_modules/
+server/node_modules/
+dist/
+server/dist/
+*.tsbuildinfo

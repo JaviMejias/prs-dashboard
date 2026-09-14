@@ -1,20 +1,18 @@
 import { useCallback, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { BellRing, Check, GitBranch, GitPullRequest, LogOut, Monitor, Plus, Trash2, Volume2, X } from 'lucide-react'
+import { BellRing, Check, GitPullRequest, LogOut, Monitor, Plus, Trash2, Volume2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
 import { PULL_REQUEST_POLL_INTERVAL_MS } from '../lib/notifications'
-import { saveGitWorkflowSettings, saveNotificationPreferences, saveRepos } from '../lib/storage'
-import type { GitWorkflowSettings, NotificationPreferences, RepoConfig } from '../types'
+import { saveNotificationPreferences, saveRepos } from '../lib/storage'
+import type { NotificationPreferences, RepoConfig } from '../types'
 
 export default function SettingsDialog({
   repos,
   setRepos,
   preferences,
   setPreferences,
-  gitWorkflowSettings,
-  setGitWorkflowSettings,
   triggerRef,
   requestDesktop,
   testSound,
@@ -25,8 +23,6 @@ export default function SettingsDialog({
   setRepos: (repos: RepoConfig[]) => void
   preferences: NotificationPreferences
   setPreferences: (preferences: NotificationPreferences) => void
-  gitWorkflowSettings: GitWorkflowSettings
-  setGitWorkflowSettings: (settings: GitWorkflowSettings) => void
   triggerRef: RefObject<HTMLButtonElement>
   requestDesktop: () => void
   testSound: () => void
@@ -34,8 +30,6 @@ export default function SettingsDialog({
   onLogout: () => void
 }) {
   const [draft, setDraft] = useState<RepoConfig>({ workspace: '', repo: '' })
-  const [developerDraft, setDeveloperDraft] = useState({ displayName: '', remote: '' })
-  const [repositoryDraft, setRepositoryDraft] = useState({ repository: '', remote: '' })
   const dialogRef = useRef<HTMLElement>(null)
   const reduceMotion = useReducedMotion()
   const close = useCallback(onClose, [onClose])
@@ -85,29 +79,6 @@ export default function SettingsDialog({
     saveNotificationPreferences(next)
   }
 
-  const updateWorkflow = (next: GitWorkflowSettings) => {
-    setGitWorkflowSettings(next)
-    saveGitWorkflowSettings(next)
-  }
-
-  const addDeveloperRemote = () => {
-    const displayName = developerDraft.displayName.trim()
-    const remote = developerDraft.remote.trim()
-    if (!displayName || !remote) return toast.error('Completa el nombre y el remoto del desarrollador.')
-    const next = { ...gitWorkflowSettings, developerRemotes: [...gitWorkflowSettings.developerRemotes, { id: `${Date.now()}`, displayName, remote }] }
-    updateWorkflow(next)
-    setDeveloperDraft({ displayName: '', remote: '' })
-  }
-
-  const addRepositoryRemote = () => {
-    const repository = repositoryDraft.repository.trim()
-    const remote = repositoryDraft.remote.trim()
-    if (!repository || !remote) return toast.error('Completa el repositorio y su remoto.')
-    const next = { ...gitWorkflowSettings, repositoryRemotes: [...gitWorkflowSettings.repositoryRemotes, { id: `${Date.now()}`, repository, remote }] }
-    updateWorkflow(next)
-    setRepositoryDraft({ repository: '', remote: '' })
-  }
-
   return (
     <motion.div
       className="dialog-backdrop"
@@ -151,20 +122,6 @@ export default function SettingsDialog({
               <label className="field" htmlFor="repo-slug"><span>Repositorio</span><input id="repo-slug" value={draft.repo} onChange={(event) => setDraft({ ...draft, repo: event.target.value })} placeholder="providers_api" /></label>
               <button className="button button-secondary" type="submit"><Plus size={16} /> Agregar</button>
             </form>
-          </section>
-
-          <section className="settings-section git-workflow-settings" aria-labelledby="git-workflow-heading">
-            <div className="settings-section-heading"><span className="settings-section-icon"><GitBranch size={18} /></span><div><h3 id="git-workflow-heading">Flujo local de revisión</h3><p>Genera instrucciones para revisar cada PR desde tus remotos locales.</p></div></div>
-            <div className="git-command-help"><code>git sync-remotes</code><span>La app no puede ejecutar comandos en tu computador. Úsalo antes de copiar una instrucción.</span></div>
-            <div className="workflow-mapping-group"><div className="mapping-heading"><strong>Desarrolladores y remotos</strong><small>Asocia el autor de Bitbucket con el remoto que tienes en tu clon.</small></div>
-              <div className="mapping-list">{gitWorkflowSettings.developerRemotes.map((item) => <div className="mapping-row" key={item.id}><input aria-label="Nombre del desarrollador" value={item.displayName} onChange={(event) => updateWorkflow({ ...gitWorkflowSettings, developerRemotes: gitWorkflowSettings.developerRemotes.map((entry) => entry.id === item.id ? { ...entry, displayName: event.target.value } : entry) })} /><span>→</span><input aria-label="Remoto local" value={item.remote} onChange={(event) => updateWorkflow({ ...gitWorkflowSettings, developerRemotes: gitWorkflowSettings.developerRemotes.map((entry) => entry.id === item.id ? { ...entry, remote: event.target.value } : entry) })} /><button type="button" className="icon-button" aria-label={`Eliminar remoto de ${item.displayName}`} onClick={() => updateWorkflow({ ...gitWorkflowSettings, developerRemotes: gitWorkflowSettings.developerRemotes.filter((entry) => entry.id !== item.id) })}><Trash2 size={15} /></button></div>)}</div>
-              <form className="mapping-add" onSubmit={(event) => { event.preventDefault(); addDeveloperRemote() }}><input value={developerDraft.displayName} onChange={(event) => setDeveloperDraft({ ...developerDraft, displayName: event.target.value })} placeholder="Nombre del desarrollador" /><input value={developerDraft.remote} onChange={(event) => setDeveloperDraft({ ...developerDraft, remote: event.target.value })} placeholder="remoto" /><button className="button button-secondary" type="submit"><Plus size={15} /> Agregar</button></form>
-            </div>
-            <div className="workflow-mapping-group"><div className="mapping-heading"><strong>Repositorios destino</strong><small>Define el remoto local de cada repositorio de Bitbucket.</small></div>
-              <div className="mapping-list">{gitWorkflowSettings.repositoryRemotes.map((item) => <div className="mapping-row" key={item.id}><input aria-label="Repositorio Bitbucket" value={item.repository} onChange={(event) => updateWorkflow({ ...gitWorkflowSettings, repositoryRemotes: gitWorkflowSettings.repositoryRemotes.map((entry) => entry.id === item.id ? { ...entry, repository: event.target.value } : entry) })} /><span>→</span><input aria-label="Remoto destino" value={item.remote} onChange={(event) => updateWorkflow({ ...gitWorkflowSettings, repositoryRemotes: gitWorkflowSettings.repositoryRemotes.map((entry) => entry.id === item.id ? { ...entry, remote: event.target.value } : entry) })} /><button type="button" className="icon-button" aria-label={`Eliminar mapeo de ${item.repository}`} onClick={() => updateWorkflow({ ...gitWorkflowSettings, repositoryRemotes: gitWorkflowSettings.repositoryRemotes.filter((entry) => entry.id !== item.id) })}><Trash2 size={15} /></button></div>)}</div>
-              <form className="mapping-add" onSubmit={(event) => { event.preventDefault(); addRepositoryRemote() }}><input value={repositoryDraft.repository} onChange={(event) => setRepositoryDraft({ ...repositoryDraft, repository: event.target.value })} placeholder="workspace/repositorio" /><input value={repositoryDraft.remote} onChange={(event) => setRepositoryDraft({ ...repositoryDraft, remote: event.target.value })} placeholder="origin" /><button className="button button-secondary" type="submit"><Plus size={15} /> Agregar</button></form>
-            </div>
-            <button type="button" className={`workflow-sync-toggle${gitWorkflowSettings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => updateWorkflow({ ...gitWorkflowSettings, syncRemotesConfirmed: !gitWorkflowSettings.syncRemotesConfirmed })} aria-pressed={gitWorkflowSettings.syncRemotesConfirmed}><span>{gitWorkflowSettings.syncRemotesConfirmed ? '✓' : ''}</span> Ya ejecuté <code>git sync-remotes</code> en mi equipo</button>
           </section>
 
           <section className="settings-section" aria-labelledby="notifications-heading">
