@@ -1,4 +1,4 @@
-import { classifyPr, getLifecycleStatus, getReviewerState, isFreshPullRequest } from './bitbucket'
+import { getLifecycleStatus, getReviewDecision, getReviewerState, isFreshPullRequest } from './pullRequestReviewState'
 import { displayName, requiresReview } from './dashboard'
 import type { AppliedReviewRule, AppliedRulepack, PullRequest, PullRequestActivity, RepoConfig, ReviewContext, ReviewContextActivity, Session } from '../types'
 
@@ -33,7 +33,7 @@ function normalizeActivity(pr: PullRequest, activity: PullRequestActivity[]): Re
 
 export function buildReviewContext(pr: PullRequest, session: Session, details: ReviewContextDetails, rulepacks: AppliedRulepack[] = [], rules: AppliedReviewRule[] = []): ReviewContext {
   const identity = displayName(session.displayName, session.email)
-  const status = classifyPr(pr, session.uuid)
+  const status = getReviewDecision(pr, session.uuid, session.displayName).status
   const activity = normalizeActivity(pr, details.activity)
   const isRevisit = Boolean(getReviewerState(pr, identity, session.uuid))
   return {
@@ -59,7 +59,7 @@ export function buildReviewContext(pr: PullRequest, session: Session, details: R
     },
     reviewState: {
       isNew: status === 'unreviewed' && isFreshPullRequest(pr),
-      requiresReview: requiresReview(pr, session.uuid),
+      requiresReview: requiresReview(pr, session.uuid, session.displayName),
       isRevisit,
       status,
       lastRelevantActivity: activity[activity.length - 1],

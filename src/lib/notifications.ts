@@ -1,4 +1,4 @@
-import { classifyPr, getLifecycleStatus } from './bitbucket'
+import { getLifecycleStatus, getReviewDecision } from './pullRequestReviewState'
 import { displayName, isIgnoredPullRequest, pullRequestKey, requiresReview } from './dashboard'
 import type {
   Notice,
@@ -98,6 +98,7 @@ export function getNoticePresentation(
   notice: Notice,
   pullRequest?: PullRequest,
   reviewerUuid?: string,
+  reviewerName?: string,
 ): NoticePresentation {
   const historical: NoticePresentation = {
     tone: notice.kind,
@@ -137,7 +138,7 @@ export function getNoticePresentation(
 
   const closedPresentation = lifecyclePresentation[lifecycle]
   if (closedPresentation) return closedPresentation
-  if (requiresReview(pullRequest, reviewerUuid)) return historical
+  if (requiresReview(pullRequest, reviewerUuid, reviewerName)) return historical
 
   if (isIgnoredPullRequest(pullRequest)) {
     return {
@@ -148,7 +149,7 @@ export function getNoticePresentation(
     }
   }
 
-  const status = classifyPr(pullRequest, reviewerUuid)
+  const status = getReviewDecision(pullRequest, reviewerUuid, reviewerName).status
   if (status === 'waiting') {
     return {
       tone: 'waiting',

@@ -1,5 +1,5 @@
-import type { GitWorkflowSettings, IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, RepositoryTechnology, ReviewRule, Session } from '../types'
-const keys = { session: 'prcr:session', repos: 'prcr:repos', notices: 'prcr:notices', snapshot: 'prcr:snapshot', notificationPreferences: 'prcr:notification-preferences', ignoreRules: 'prcr:ignore-rules', gitWorkflow: 'prcr:git-workflow', customRules: 'prcr:custom-rules', repositoryLibraryMigration: 'prcr:repository-library-migration' }
+import type { GitWorkflowSettings, IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, RepositoryTechnology, ReviewHistory, ReviewRule, Session } from '../types'
+const keys = { session: 'prcr:session', repos: 'prcr:repos', notices: 'prcr:notices', snapshot: 'prcr:snapshot', reviewHistory: 'prcr:review-history', notificationPreferences: 'prcr:notification-preferences', ignoreRules: 'prcr:ignore-rules', gitWorkflow: 'prcr:git-workflow', customRules: 'prcr:custom-rules', repositoryLibraryMigration: 'prcr:repository-library-migration' }
 const officialKontrollerRulepack = 'kontroller-official@1.0.0'
 const legacyKontrollerRulepack = 'kontroller-rails-legacy@1.0.0'
 export const kontrollerTestTechnologies: RepositoryTechnology[] = [
@@ -55,6 +55,10 @@ export const getNotices = () => getJson<unknown[]>(keys.notices, []).filter(isAc
 export const saveNotices = (n: Notice[]) => saveJson(keys.notices, n.slice(0, 40))
 export const getSnapshot = () => getJson<NotificationSnapshot>(keys.snapshot, {})
 export const saveSnapshot = (s: NotificationSnapshot) => saveJson(keys.snapshot, s)
+export const emptyReviewHistory = (): ReviewHistory => ({ schemaVersion: 1, repositories: {} })
+export const getReviewHistory = () => getJson<ReviewHistory>(keys.reviewHistory, emptyReviewHistory())
+export const saveReviewHistory = (history: ReviewHistory) => saveJson(keys.reviewHistory, history)
+export const clearReviewHistory = () => saveReviewHistory(emptyReviewHistory())
 export const defaultNotificationPreferences: NotificationPreferences = { desktop: false, sound: true, title: true }
 export const getNotificationPreferences = () => getJson<NotificationPreferences>(keys.notificationPreferences, defaultNotificationPreferences)
 export const saveNotificationPreferences = (preferences: NotificationPreferences) => saveJson(keys.notificationPreferences, preferences)

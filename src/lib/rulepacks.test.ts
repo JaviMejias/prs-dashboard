@@ -39,7 +39,12 @@ describe('rulepacks', () => {
   it('composes explicit rules in configured order and removes duplicates', () => {
     const rules = getAvailableRules()
     const result = resolveRulepacksForRepository({ workspace: 'w', repo: 'r', ruleRefs: [rules[1].reference, rules[0].reference, rules[1].reference] })
-    expect(result.rules.map((rule) => rule.reference)).toEqual(['kontroller-code-style@1.0.0', rules[1].reference, rules[0].reference])
+    expect(result.rules.map((rule) => rule.reference)).toEqual([
+      'kontroller-qa-review-summary@1.0.0',
+      'kontroller-deep-pr-review@1.0.0',
+      'kontroller-code-style@1.0.0',
+      'kontroller-review-guidelines@1.0.0',
+    ])
     expect(result.unavailable).toEqual([])
   })
 

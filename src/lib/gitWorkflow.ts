@@ -1,4 +1,4 @@
-import { getReviewerState } from './bitbucket'
+import { getReviewerState } from './pullRequestReviewState'
 import { displayName } from './dashboard'
 import type { GitWorkflowSettings, PullRequest, Session } from '../types'
 

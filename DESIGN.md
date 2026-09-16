@@ -175,6 +175,8 @@ Todo control interactivo define default, hover, focus-visible y active. Los esta
 
 La cabecera contiene identidad, ubicación actual, sincronización, notificaciones y configuración. Los filtros desktop son disclosures diseñados por la aplicación; en móvil se consolidan en una hoja inferior modal. La cola usa registros semánticos, no una tabla rígida, porque su contenido necesita reordenarse en móvil sin perder datos. El botón “Mostrar 20 más” hace explícita la carga incremental y preserva los elementos actuales.
 
+La vista Resumen usa una superficie continua: una lectura principal de la actividad personal, una franja compacta de métricas y paneles de evidencia para ritmo, distribución por repositorio y decisiones recientes. Los números se animan solo cuando cambian; el gráfico es un apoyo visual con etiqueta textual y nunca reemplaza la cifra exacta. El histórico parcial se identifica como provisional para no confundir la cobertura local con un archivo completo de Bitbucket.
+
 Los badges de ciclo de vida son secundarios. El badge QA y la señal de relevo son la jerarquía operativa principal. Los avatares usan iniciales estables y un aro semántico cuando existe actividad de revisión.
 
 ### Forms and overlays

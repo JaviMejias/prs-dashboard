@@ -1,6 +1,6 @@
-import { classifyPr, getLifecycleStatus, isFreshPullRequest } from './bitbucket'
+import { getLifecycleStatus, getReviewDecision, isFreshPullRequest } from './pullRequestReviewState'
 import { getIgnoreRules } from './storage'
-import type { LifecycleStatus, PrStatus, PullRequest, ReviewerState } from '../types'
+import type { LifecycleStatus, PrStatus, PullRequest, ReviewDecision, ReviewerState } from '../types'
 
 export type ReviewFilter = 'ALL' | 'ATTENTION' | 'WAITING' | 'REVIEWED'
 export type LifecycleFilter = 'ALL' | LifecycleStatus
@@ -98,9 +98,9 @@ export function isIgnoredPullRequest(pr: PullRequest) {
     || rules.authors.some((item) => normalizeForRule(item) === author)
 }
 
-export function requiresReview(pr: PullRequest, uuid?: string) {
+export function requiresReview(pr: PullRequest, uuid?: string, displayName?: string) {
   if (getLifecycleStatus(pr) !== 'OPEN' || isIgnoredPullRequest(pr)) return false
-  const status = classifyPr(pr, uuid)
+  const status = getReviewDecision(pr, uuid, displayName).status
   return status === 'unreviewed' || status === 'changes'
 }
 
@@ -110,18 +110,35 @@ export function getReviewLabel(pr: PullRequest, status: PrStatus) {
   return reviewLabels[status]
 }
 
-export function matchesReviewFilter(pr: PullRequest, filter: ReviewFilter, uuid?: string) {
+const shortCommit = (hash?: string) => hash?.slice(0, 7)
+
+export function getReviewDecisionDetail(reviewDecision: ReviewDecision) {
+  if (reviewDecision.reason === 'new_pr') return 'Sin revisiones previas'
+  if (reviewDecision.reason === 'no_review_recorded') return 'No hay una revisión tuya registrada'
+  if (reviewDecision.reason === 'reviewer_not_identified') return 'No se pudo identificar al revisor actual'
+  if (reviewDecision.reason === 'new_commit_after_review') return `Commit ${shortCommit(reviewDecision.latestCommit) || 'nuevo'} después de tu revisión`
+  if (reviewDecision.reason === 'same_commit_after_review' && reviewDecision.reviewedCommit) return `Commit ${shortCommit(reviewDecision.reviewedCommit)} · sin cambios nuevos`
+  if (reviewDecision.reason === 'reviewer_activity_after_review') return 'La última actividad registrada pertenece a QA'
+  if (reviewDecision.reason === 'updated_after_review') return 'Bitbucket registra actividad posterior a tu revisión'
+  if (reviewDecision.reason === 'waiting_for_developer') return 'QA pidió cambios · esperando al desarrollador'
+  if (reviewDecision.reason === 'activity_incomplete') return 'Actividad incompleta · no se pudo comparar el commit'
+  if (reviewDecision.reason === 'merged') return 'Ciclo completado en Bitbucket'
+  if (reviewDecision.reason === 'declined') return 'Ciclo cerrado en Bitbucket'
+  return 'Estado actualizado desde Bitbucket'
+}
+
+export function matchesReviewFilter(pr: PullRequest, filter: ReviewFilter, uuid?: string, displayName?: string) {
   if (filter === 'ALL') return true
-  if (filter === 'ATTENTION') return requiresReview(pr, uuid)
+  if (filter === 'ATTENTION') return requiresReview(pr, uuid, displayName)
   if (isIgnoredPullRequest(pr)) return false
-  const status = classifyPr(pr, uuid)
+  const status = getReviewDecision(pr, uuid, displayName).status
   if (filter === 'WAITING') return status === 'waiting'
   return status === 'current'
 }
 
-export function comparePullRequests(first: PullRequest, second: PullRequest, uuid?: string) {
-  const firstPriority = reviewPriority[classifyPr(first, uuid)]
-  const secondPriority = reviewPriority[classifyPr(second, uuid)]
+export function comparePullRequests(first: PullRequest, second: PullRequest, uuid?: string, displayName?: string) {
+  const firstPriority = reviewPriority[getReviewDecision(first, uuid, displayName).status]
+  const secondPriority = reviewPriority[getReviewDecision(second, uuid, displayName).status]
   if (firstPriority !== secondPriority) return firstPriority - secondPriority
   return new Date(second.updated_on).getTime() - new Date(first.updated_on).getTime()
 }

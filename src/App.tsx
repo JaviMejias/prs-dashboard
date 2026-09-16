@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useQueries } from '@tanstack/react-query'
 import { AnimatePresence } from 'framer-motion'
 import {
   Bell,
@@ -14,25 +13,23 @@ import {
   RefreshCw,
   ScanEye,
   Settings2,
-  SlidersHorizontal,
   WifiOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Avatar from './components/Avatar'
-import FilterToolbar from './components/FilterToolbar'
 import Login from './components/Login'
 import NotificationPanel from './components/NotificationPanel'
-import PullRequestRecord from './components/PullRequestRecord'
+import QueueView from './components/QueueView'
 import SettingsDialog from './components/SettingsDialog'
 import SummaryView from './components/SummaryView'
 import AuthorsView from './components/AuthorsView'
 import { useOnlineStatus } from './hooks/useOnlineStatus'
-import { getLifecycleStatus, getPullRequests } from './lib/bitbucket'
+import { useReviewQueueFilters } from './hooks/useReviewQueueFilters'
+import { usePullRequestQueue } from './hooks/usePullRequestQueue'
+import { getLifecycleStatus } from './lib/pullRequestReviewState'
 import {
   comparePullRequests,
   displayName,
-  getLifecycleCounts,
-  matchesReviewFilter,
   pullRequestKey,
   requiresReview,
 } from './lib/dashboard'
@@ -43,7 +40,6 @@ import {
   getNoticePresentation,
   getObservedRepositories,
   noticeReferencesPullRequest,
-  PULL_REQUEST_POLL_INTERVAL_MS,
   repositoryKey,
   repositorySnapshotKey,
 } from './lib/notifications'
@@ -122,98 +118,6 @@ function playDashboardSound(context: AudioContext) {
   oscillator.stop(context.currentTime + 0.24)
 }
 
-function PullRequestSkeleton() {
-  return (
-    <div className="pr-skeleton" aria-hidden="true">
-      <div className="skeleton-primary">
-        <div className="skeleton-heading"><span /><span /><span /></div>
-        <div className="skeleton-line skeleton-title" />
-        <div className="skeleton-context"><span /><span><i /><i /></span><i /></div>
-        <div className="skeleton-handoff"><span /><i /><span /><b><i /><i /></b></div>
-      </div>
-      <div className="skeleton-reviewers">
-        <span className="skeleton-reviewer-label" />
-        <div><span /><span /><span /></div>
-        <i><span /><span /></i>
-      </div>
-      <span className="skeleton-action" />
-      <div className="skeleton-stats"><span /><span /><span /><span /><span /><span /></div>
-    </div>
-  )
-}
-
-function EmptySignal() {
-  return (
-    <span className="empty-signal" aria-hidden="true">
-      <span className="empty-signal-orbit"><i /></span>
-      <span className="empty-icon"><CheckCircle2 size={25} /></span>
-    </span>
-  )
-}
-
-function EmptyQueue({
-  repos,
-  filterLifecycle,
-  filterReview,
-  hasLoadError,
-  onReset,
-  onConfigure,
-  onRetry,
-}: {
-  repos: RepoConfig[]
-  filterLifecycle: LifecycleFilter
-  filterReview: ReviewFilter
-  hasLoadError: boolean
-  onReset: () => void
-  onConfigure: () => void
-  onRetry: () => void
-}) {
-  if (!repos.length) {
-    return (
-      <div className="empty-state" role="status">
-        <span className="empty-icon"><GitPullRequest size={24} /></span>
-        <span className="empty-kicker">Sin fuentes conectadas</span>
-        <h3>Conecta tu primer repositorio</h3>
-        <p>Agrega un repositorio de Bitbucket para empezar a construir tu cola.</p>
-        <button type="button" className="button button-primary" onClick={onConfigure}><GitBranch size={17} /> Preparar repositorios</button>
-      </div>
-    )
-  }
-
-  if (hasLoadError) {
-    return (
-      <div className="empty-state empty-error" role="alert">
-        <span className="empty-icon"><CircleAlert size={24} /></span>
-        <span className="empty-kicker">Sin respuesta de Bitbucket</span>
-        <h3>No pudimos completar la cola</h3>
-        <p>Bitbucket no devolvió información disponible. Tus filtros y preferencias siguen intactos.</p>
-        <button type="button" className="button button-secondary" onClick={onRetry}><RefreshCw size={16} /> Reintentar conexión</button>
-      </div>
-    )
-  }
-
-  if (filterLifecycle === 'OPEN' && filterReview === 'ATTENTION') {
-    return (
-      <div className="empty-state empty-success" role="status">
-        <EmptySignal />
-        <span className="empty-kicker">Escaneo completado</span>
-        <h3>Tu cola está al día</h3>
-        <p>No hay pull requests abiertos que necesiten tu revisión.</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="empty-state" role="status">
-      <span className="empty-icon"><SlidersHorizontal size={24} /></span>
-      <span className="empty-kicker">Sin coincidencias</span>
-      <h3>No hay resultados con estos filtros</h3>
-      <p>La información sigue disponible; prueba con otra combinación.</p>
-      <button type="button" className="button button-secondary" onClick={onReset}>Restablecer filtros</button>
-    </div>
-  )
-}
-
 export default function App() {
   const [session, setSession] = useState<Session | null>(() => {
     const value = getSession()
@@ -270,46 +174,23 @@ export default function App() {
     return () => window.removeEventListener('pointerdown', unlockSound)
   }, [preferences.sound, session])
 
-  const queries = useQueries({
-    queries: session ? repos.map((repo) => ({
-      queryKey: ['prs-v2', repo.workspace, repo.repo],
-      queryFn: () => getPullRequests(repo, session),
-      refetchInterval: PULL_REQUEST_POLL_INTERVAL_MS,
-      refetchIntervalInBackground: true,
-      staleTime: 10_000,
-    })) : [],
-  })
-  const allPrs = useMemo(() => Array.from(new Map(
-    queries
-      .flatMap((query) => query.data || [])
-      .map((pr) => [`${pr.repo.workspace}/${pr.repo.repo}#${pr.id}`, pr]),
-  ).values()), [queries])
-  const detectedAuthors = useMemo(() => {
-    const authors = new Map<string, { name: string; count: number }>()
-    allPrs.forEach((pr) => {
-      const name = displayName(pr.author?.display_name || pr.author?.nickname)
-      const key = name.toLocaleLowerCase()
-      authors.set(key, { name, count: (authors.get(key)?.count || 0) + 1 })
-    })
-    return Array.from(authors.values()).sort((first, second) => second.count - first.count || first.name.localeCompare(second.name))
-  }, [allPrs])
+  const {
+    queries,
+    allPrs,
+    fetching,
+    fetchedRepositories,
+    initialLoading,
+    loadingProgress,
+    errors,
+    initialSyncComplete,
+    syncVersion,
+    successfulRepositoryKeys,
+    latestSync,
+  } = usePullRequestQueue(session, repos)
   const noticePresentations = useMemo(() => new Map(notices.map((notice) => {
     const pullRequest = allPrs.find((pr) => noticeReferencesPullRequest(notice, pr))
-    return [notice.id, getNoticePresentation(notice, pullRequest, session?.uuid)]
+    return [notice.id, getNoticePresentation(notice, pullRequest, session?.uuid, session?.displayName)]
   })), [allPrs, ignoreRevision, notices, session?.uuid])
-  const fetching = queries.some((query) => query.isFetching)
-  const fetchedRepositories = queries.filter((query) => query.isFetched).length
-  const initialLoading = queries.length > 0 && fetchedRepositories < queries.length
-  const loadingProgress = queries.length ? (fetchedRepositories / queries.length) * 100 : 0
-  const errors = queries.filter((query) => query.isError)
-  const initialSyncComplete = queries.length > 0 && queries.every((query) => query.isFetched)
-  const syncVersion = queries.map((query) => query.dataUpdatedAt).join(':')
-  const successfulRepositoryKeys = repos
-    .filter((_, index) => queries[index]?.isSuccess)
-    .map(repositoryKey)
-    .join('|')
-  const latestSync = Math.max(0, ...queries.map((query) => query.dataUpdatedAt))
-
   useEffect(() => {
     if (!initialLoading || !isOnline) {
       setLoadingIsSlow(false)
@@ -391,7 +272,7 @@ export default function App() {
     const lifecycle = getLifecycleStatus(target)
     const targetPosition = allPrs
       .filter((pr) => repositoryKey(pr.repo) === repositoryKey(target.repo) && getLifecycleStatus(pr) === lifecycle)
-      .sort((first, second) => comparePullRequests(first, second, session?.uuid))
+      .sort((first, second) => comparePullRequests(first, second, session?.uuid, session?.displayName))
       .findIndex((pr) => pullRequestKey(pr) === targetKey)
     const feedback = locatedFeedback[lifecycle]
     const FeedbackIcon = feedback.icon
@@ -423,7 +304,7 @@ export default function App() {
       if (!successfulRepositories.has(pullRequestRepository)) return
 
       const key = pullRequestKey(pr)
-      const needsReview = requiresReview(pr, session?.uuid)
+      const needsReview = requiresReview(pr, session?.uuid, session?.displayName)
       const current = { updatedOn: pr.updated_on, needsReview }
       const kind = getActionableNoticeKind(
         previous[key],
@@ -533,15 +414,8 @@ export default function App() {
     return () => window.removeEventListener('prcr:ignore-rules-changed', refreshIgnoreRules)
   }, [])
 
-  const repoPrs = allPrs.filter((pr) => filterRepo === 'all' || `${pr.repo.workspace}/${pr.repo.repo}` === filterRepo)
-  const statusCounts = useMemo(() => getLifecycleCounts(repoPrs), [repoPrs])
-  const sortedPrs = useMemo(() => repoPrs
-    .filter((pr) => (filterLifecycle === 'ALL' || getLifecycleStatus(pr) === filterLifecycle)
-      && matchesReviewFilter(pr, filterReview, session?.uuid))
-    .sort((first, second) => comparePullRequests(first, second, session?.uuid)), [filterLifecycle, filterReview, repoPrs, session?.uuid])
-  const visiblePrs = sortedPrs.slice(0, visibleLimit)
+  const { sortedPrs, visiblePrs, statusCounts, reviewCount } = useReviewQueueFilters({ allPrs, session, filterRepo, filterLifecycle, filterReview, visibleLimit })
   const visiblePullRequestKeys = visiblePrs.map(pullRequestKey).join('|')
-  const reviewCount = repoPrs.filter((pr) => requiresReview(pr, session?.uuid)).length
   const unread = notices.filter((notice) => !notice.read).length
   const allRepositoriesFailed = queries.length > 0 && errors.length === queries.length && !fetching
   const syncLabel = !isOnline
@@ -656,83 +530,38 @@ export default function App() {
           <div className="attention-summary" aria-label={`${reviewCount} ${reviewCount === 1 ? 'requiere' : 'requieren'} tu revisión`}><span className="attention-icon"><ScanEye size={20} /></span><strong>{reviewCount}</strong><span>{reviewCount === 1 ? 'requiere' : 'requieren'}<br />tu revisión</span></div>
         </section>
 
-        <FilterToolbar
-          filterLifecycle={filterLifecycle}
-          setFilterLifecycle={setFilterLifecycle}
-          filterRepo={filterRepo}
-          setFilterRepo={setFilterRepo}
-          filterReview={filterReview}
-          setFilterReview={setFilterReview}
-          statusCounts={statusCounts}
+        <QueueView
           repos={repos}
           allPrs={allPrs}
-          resultCount={sortedPrs.length}
+          visiblePrs={visiblePrs}
+          sortedPrs={sortedPrs}
+          statusCounts={statusCounts}
+          session={session}
+          filterRepo={filterRepo}
+          filterLifecycle={filterLifecycle}
+          filterReview={filterReview}
+          setFilterRepo={setFilterRepo}
+          setFilterLifecycle={setFilterLifecycle}
+          setFilterReview={setFilterReview}
+          gitWorkflowSettings={gitWorkflowSettings}
+          onGitWorkflowSettingsChange={updateGitWorkflowSettings}
+          onOpenPreparation={() => setActiveView('authors')}
           onReset={resetFilters}
+          onRetry={refresh}
+          onLoadMore={() => setVisibleLimit((limit) => limit + 20)}
+          highlightedPrKey={highlightedPrKey}
+          visibleLimit={visibleLimit}
+          errorCount={errors.length}
+          allRepositoriesFailed={allRepositoriesFailed}
+          fetching={fetching}
+          initialLoading={initialLoading}
+          loadingIsSlow={loadingIsSlow}
+          isOnline={isOnline}
+          fetchedRepositories={fetchedRepositories}
+          repositoryCount={queries.length}
+          loadingProgress={loadingProgress}
         />
-
-        {errors.length > 0 && allPrs.length > 0 && (
-          <div className="error-banner" role="alert">
-            <span><CircleAlert size={18} /></span>
-            <div><strong>{errors.length === queries.length ? 'No pudimos conectar con Bitbucket' : errors.length === 1 ? '1 repositorio no pudo actualizarse' : `${errors.length} repositorios no pudieron actualizarse`}</strong><p>Conservamos la información disponible. Revisa tus credenciales o intenta nuevamente.</p></div>
-            <button type="button" className="button button-secondary" onClick={refresh}>Reintentar</button>
-          </div>
-        )}
-
-        {initialLoading && (
-          <div className={`loading-status${loadingIsSlow ? ' is-slow' : ''}${!isOnline ? ' is-offline' : ''}`} role="status" aria-live="polite">
-            <span className="loading-status-icon">{isOnline ? <RefreshCw className="spin" size={18} /> : <WifiOff size={18} />}</span>
-            <span>
-              <strong>{!isOnline ? 'Sin conexión a internet' : loadingIsSlow ? 'Bitbucket está tardando un poco' : 'Preparando tu cola'}</strong>
-              <small>{!isOnline ? 'La sincronización continuará cuando recuperes la conexión.' : loadingIsSlow ? `${fetchedRepositories} de ${queries.length} repositorios listos · seguimos intentando.` : `${fetchedRepositories} de ${queries.length} repositorios sincronizados`}</small>
-            </span>
-            <span
-              className="loading-progress"
-              role="progressbar"
-              aria-label="Repositorios sincronizados"
-              aria-valuemin={0}
-              aria-valuemax={queries.length}
-              aria-valuenow={fetchedRepositories}
-            >
-              <i style={{ width: `${loadingProgress}%` }} />
-            </span>
-          </div>
-        )}
-
-        <section className="queue-section" aria-labelledby="pull-requests-title">
-          <header className="queue-section-heading">
-            <h2 id="pull-requests-title">Prioridad de revisión</h2>
-            <span className={`queue-sync-note ${fetching || !isOnline ? 'is-visible' : ''}`}>
-              {isOnline ? <RefreshCw size={14} className={fetching ? 'spin' : ''} /> : <WifiOff size={14} />}
-              {isOnline ? 'Actualizando actividad' : 'Sin conexión'}
-            </span>
-          </header>
-          <div className="queue-surface">
-            <div className="queue-columns" aria-hidden="true"><span>Pull request · relevo</span><span>Actividad QA</span><span>Acciones</span></div>
-            <div className="pr-list" aria-busy={initialLoading && !allPrs.length}>
-              <AnimatePresence mode="popLayout">
-                {visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={updateGitWorkflowSettings} onOpenSettings={() => setActiveView('authors')} />)}
-              </AnimatePresence>
-              {initialLoading && !allPrs.length && <><PullRequestSkeleton /><PullRequestSkeleton /><PullRequestSkeleton /></>}
-              {!initialLoading && !sortedPrs.length && (
-                <EmptyQueue
-                  repos={repos}
-                  filterLifecycle={filterLifecycle}
-                  filterReview={filterReview}
-                  hasLoadError={errors.length > 0 && allPrs.length === 0}
-                  onReset={resetFilters}
-                  onConfigure={() => setActiveView('authors')}
-                  onRetry={refresh}
-                />
-              )}
-            </div>
-          </div>
-          {visibleLimit < sortedPrs.length && (
-            <button type="button" className="load-more" onClick={() => setVisibleLimit((limit) => limit + 20)}>
-              Mostrar 20 más <span>{sortedPrs.length - visibleLimit} restantes</span>
-            </button>
-          )}
-        </section>
-        </> : activeView === 'summary' ? <SummaryView prs={allPrs} session={session} /> : <AuthorsView prs={allPrs} repos={repos} setRepos={setRepos} settings={gitWorkflowSettings} onChange={updateGitWorkflowSettings} />}
+        </> : activeView === 'summary' ? <SummaryView prs={allPrs} repos={repos} session={session} /> : <AuthorsView prs={allPrs} repos={repos} setRepos={setRepos} settings={gitWorkflowSettings} onChange={updateGitWorkflowSettings} />}
       </main>
 
       <nav className="mobile-bottom-nav" aria-label="Navegación principal">
