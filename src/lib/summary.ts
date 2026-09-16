@@ -83,7 +83,7 @@ export function summaryMetricsForRange(history: ReviewHistory, repos: RepoConfig
     }))
 
   const repositories = Array.from(repositoryPullRequests.entries())
-    .map(([key, pullRequests]) => ({ repositoryKey: key, label: key.split('/').at(-1) || key, pullRequests: pullRequests.size }))
+    .map(([key, pullRequests]) => ({ repositoryKey: key, label: key.split('/').pop() || key, pullRequests: pullRequests.size }))
     .sort((first, second) => second.pullRequests - first.pullRequests)
 
   return {
