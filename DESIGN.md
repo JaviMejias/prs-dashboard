@@ -28,9 +28,10 @@ typography:
   mono:
     fontFamily: "IBM Plex Mono, ui-monospace, monospace"
 rounded:
-  control: "0.5rem"
-  panel: "0.75rem"
-  surface: "1rem"
+  control: "0.625rem"
+  panel: "1rem"
+  surface: "1.375rem"
+  hero: "1.625rem"
 spacing:
   control-gap: "0.5rem"
   component-gap: "0.75rem"
@@ -159,7 +160,7 @@ La cabecera sticky es casi opaca para proteger la legibilidad. Los overlays tien
 
 ## Shapes
 
-Los controles usan 8 px, paneles 12 px y superficies principales 16 px. Los avatares y puntos de estado son circulares por significado, no por decoración. Los iconos de producto viven en contenedores cuadrados suavemente redondeados. Los divisores son líneas de 1 px; no se utilizan franjas laterales para codificar prioridad.
+Los controles usan 10 px, paneles 16 px y superficies principales 22 px; los heroes y capas de lectura pueden llegar a 26 px. Esta escala suaviza la interfaz sin convertirla en una colección de cápsulas. Los avatares y puntos de estado son circulares por significado, no por decoración. Los iconos de producto viven en contenedores cuadrados suavemente redondeados. Los divisores son líneas de 1 px; no se utilizan franjas laterales para codificar prioridad.
 
 ## Components
 

@@ -40,6 +40,7 @@ export function useModalDialog(
     if (!open) return
     const previousFocus = document.activeElement as HTMLElement | null
     const dialog = dialogRef.current
+    const trigger = triggerRef?.current
     const backdrop = dialog?.parentElement
     const backgroundElements: Array<{ element: Element; wasInert: boolean }> = []
     let activeLayer: Element | null | undefined = backdrop
@@ -93,7 +94,7 @@ export function useModalDialog(
         if (!wasInert) element.removeAttribute('inert')
       })
       document.body.style.overflow = previousOverflow
-      const focusTarget = triggerRef?.current || previousFocus
+      const focusTarget = trigger || previousFocus
       focusTarget?.focus()
     }
   }, [dialogRef, onClose, open, triggerRef])

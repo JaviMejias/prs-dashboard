@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { AlertTriangle, BookOpen, Check, Clipboard, Code2, FileCode2, GitCommitHorizontal, MessageCircle, RefreshCw, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
@@ -39,8 +39,8 @@ export default function ReviewContextDialog({ pr, session, onClose }: { pr: Pull
   }
 
   return createPortal((
-    <div className="dialog-backdrop review-context-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <motion.section
+    <div className="dialog-backdrop review-context-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <m.section
         ref={dialogRef}
         className="settings-dialog review-context-dialog"
         role="dialog"
@@ -89,7 +89,7 @@ export default function ReviewContextDialog({ pr, session, onClose }: { pr: Pull
           <button type="button" className="button button-secondary" onClick={() => void copy(markdown, 'Contexto Markdown')} disabled={!context}><Clipboard size={16} /> Copiar contexto</button>
           <button type="button" className="button button-ghost" onClick={onClose}><Check size={16} /> Cerrar</button>
         </footer>
-      </motion.section>
+      </m.section>
     </div>
   ), document.body)
 }

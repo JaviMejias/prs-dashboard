@@ -117,6 +117,14 @@ export function getReviewDecisionDetail(reviewDecision: ReviewDecision) {
   if (reviewDecision.reason === 'no_review_recorded') return 'No hay una revisión tuya registrada'
   if (reviewDecision.reason === 'reviewer_not_identified') return 'No se pudo identificar al revisor actual'
   if (reviewDecision.reason === 'new_commit_after_review') return `Commit ${shortCommit(reviewDecision.latestCommit) || 'nuevo'} después de tu revisión`
+  if (reviewDecision.reason === 'developer_activity_after_review') {
+    const activityLabel = reviewDecision.latestDeveloperActivity === 'commit_and_comment'
+      ? 'El autor envió commits y respondió comentarios'
+      : reviewDecision.latestDeveloperActivity === 'comment'
+        ? 'El autor respondió o añadió un comentario'
+        : 'El autor envió commits'
+    return `${activityLabel} después de tu revisión`
+  }
   if (reviewDecision.reason === 'same_commit_after_review' && reviewDecision.reviewedCommit) return `Commit ${shortCommit(reviewDecision.reviewedCommit)} · sin cambios nuevos`
   if (reviewDecision.reason === 'reviewer_activity_after_review') return 'La última actividad registrada pertenece a QA'
   if (reviewDecision.reason === 'updated_after_review') return 'Bitbucket registra actividad posterior a tu revisión'

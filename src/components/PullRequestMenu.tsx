@@ -1,5 +1,5 @@
 import { useCallback, useId, useRef, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { Check, EllipsisVertical, EyeOff, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDismissableLayer } from '../hooks/useDismissableLayer'
@@ -48,13 +48,13 @@ export default function PullRequestMenu({ pr }: { pr: PullRequest }) {
     <div className="pr-menu-control">
       <button ref={triggerRef} type="button" className="icon-button pr-menu-trigger" aria-label={`Más acciones para el PR ${pr.id}`} aria-expanded={open} aria-controls={menuId} aria-haspopup="menu" onClick={() => setOpen((current) => !current)}><EllipsisVertical size={19} /></button>
       <AnimatePresence>
-        {open && <motion.div ref={menuRef} id={menuId} className="pr-actions-menu" role="menu" initial={{ opacity: 0, y: reduceMotion ? 0 : -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }} transition={{ duration: reduceMotion ? 0.08 : 0.15 }}>
+        {open && <m.div ref={menuRef} id={menuId} className="pr-actions-menu" role="menu" initial={{ opacity: 0, y: reduceMotion ? 0 : -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }} transition={{ duration: reduceMotion ? 0.08 : 0.15 }}>
           <span className="menu-label">Organizar cola</span>
           {ignored ? <button type="button" role="menuitem" onClick={() => updateRule('pr')}><Check size={16} /><span><strong>Reactivar PR</strong><small>Volver a incluirlo en tu cola</small></span></button> : <>
             <button type="button" role="menuitem" onClick={() => updateRule('pr')}><EyeOff size={16} /><span><strong>Ocultar este PR</strong><small>Solo afecta tu cola personal</small></span></button>
             <button type="button" role="menuitem" className="menu-item-warning" onClick={() => updateRule('author')}><UserRound size={16} /><span><strong>Ignorar este autor</strong><small>Oculta todos sus PR de tu revisión</small></span></button>
           </>}
-        </motion.div>}
+        </m.div>}
       </AnimatePresence>
     </div>
   )

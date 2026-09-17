@@ -95,8 +95,8 @@ export default function Login({ onLogin }: { onLogin: (session: Session) => void
               aria-describedby={error ? 'login-error' : undefined}
             />
           </label>
-          <label className="field" htmlFor="api-token">
-            <span>API token</span>
+          <div className="field">
+            <label htmlFor="api-token">API token</label>
             <span className="secret-control">
               <input
                 id="api-token"
@@ -122,7 +122,7 @@ export default function Login({ onLogin }: { onLogin: (session: Session) => void
                 {showToken ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </span>
-          </label>
+          </div>
           {error && <div className="form-error" id="login-error" role="alert"><CircleAlert size={17} /> {error}</div>}
           <button type="submit" className="button button-primary button-full" disabled={busy} aria-busy={busy}>
             {busy ? <><RefreshCw className="spin" size={17} /> Verificando…</> : <><ShieldCheck size={17} /> Conectar con Bitbucket</>}

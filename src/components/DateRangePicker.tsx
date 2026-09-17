@@ -1,11 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
-
-export type DateRange = { from: string; to: string }
-type Preset = 'month' | 'previous-month' | 'year' | 'previous-year'
-const localDate = (date: Date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`
-export const rangeFor = (preset: Preset): DateRange => { const now = new Date(); if (preset === 'month') return { from: localDate(new Date(now.getFullYear(), now.getMonth(), 1)), to: localDate(now) }; if (preset === 'previous-month') return { from: localDate(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: localDate(new Date(now.getFullYear(), now.getMonth(), 0)) }; if (preset === 'year') return { from: localDate(new Date(now.getFullYear(), 0, 1)), to: localDate(now) }; return { from: localDate(new Date(now.getFullYear() - 1, 0, 1)), to: localDate(new Date(now.getFullYear() - 1, 11, 31)) }
-}
+import { localDate, rangeFor, type DateRange } from '../lib/dateRange'
 const parseDate = (value: string) => { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day) }
 const monthLabel = (date: Date) => date.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })
 

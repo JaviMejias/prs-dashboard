@@ -1,5 +1,5 @@
 import { useCallback, useId, useRef, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import Avatar from './Avatar'
 import { useDismissableLayer } from '../hooks/useDismissableLayer'
@@ -54,14 +54,14 @@ export default function ReviewerPopover({ pr, session }: { pr: PullRequest; sess
         <ChevronDown size={16} className={open ? 'rotate' : ''} />
       </button>
       <AnimatePresence>
-        {open && <motion.div ref={popoverRef} id={popoverId} className="reviewer-popover" role="group" aria-label="Actividad de revisión del equipo QA" initial={{ opacity: 0, y: reduceMotion ? 0 : -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }} transition={{ duration: reduceMotion ? 0.08 : 0.16 }}>
+        {open && <m.div ref={popoverRef} id={popoverId} className="reviewer-popover" role="group" aria-label="Actividad de revisión del equipo QA" initial={{ opacity: 0, y: reduceMotion ? 0 : -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -4 }} transition={{ duration: reduceMotion ? 0.08 : 0.16 }}>
           <header><span className="section-kicker">Equipo QA</span><strong>Actividad de revisión</strong></header>
           {signals.map((person) => <div className="reviewer-person" key={person.displayName}>
             <Avatar name={person.displayName} state={person.state} size="medium" />
             <span><strong>{person.label}</strong><small>{person.displayName}</small></span>
             <span className={`reviewer-state ${person.state ? `state-${person.state}` : ''}`}>{person.state ? reviewerStateNames[person.state] : 'Sin actividad'}</span>
           </div>)}
-        </motion.div>}
+        </m.div>}
       </AnimatePresence>
     </div>
   )

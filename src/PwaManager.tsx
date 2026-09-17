@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { Download, RefreshCw, Share2, WifiOff, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { registerSW } from 'virtual:pwa-register'
@@ -70,8 +70,11 @@ export default function PwaManager() {
 
   const applyUpdate = async () => {
     setUpdating(true)
-    await updateServiceWorkerRef.current?.(true)
-    setUpdating(false)
+    try {
+      await updateServiceWorkerRef.current?.(true)
+    } finally {
+      setUpdating(false)
+    }
   }
 
   const installApp = async () => {
@@ -94,7 +97,7 @@ export default function PwaManager() {
     <div className="pwa-stack" aria-live="polite">
       <AnimatePresence initial={false}>
         {!online && (
-          <motion.aside
+          <m.aside
             className="pwa-card pwa-offline"
             initial={enterFrom}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -103,11 +106,11 @@ export default function PwaManager() {
           >
             <span className="pwa-card-icon"><WifiOff size={17} /></span>
             <span><strong>Sin conexión</strong><small>La información de Bitbucket se actualizará cuando vuelva internet.</small></span>
-          </motion.aside>
+          </m.aside>
         )}
 
         {updateAvailable && (
-          <motion.aside
+          <m.aside
             className="pwa-card pwa-update"
             initial={enterFrom}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -117,11 +120,11 @@ export default function PwaManager() {
             <span className="pwa-card-icon"><RefreshCw size={17} className={updating ? 'spin' : ''} /></span>
             <span><strong>Nueva versión disponible</strong><small>Ya está descargada y lista para usar.</small></span>
             <button type="button" onClick={applyUpdate} disabled={updating} aria-busy={updating}>{updating ? 'Actualizando…' : 'Actualizar ahora'}</button>
-          </motion.aside>
+          </m.aside>
         )}
 
         {installPrompt && !isInstalled() && (
-          <motion.aside
+          <m.aside
             className="pwa-card pwa-install"
             initial={enterFrom}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -132,11 +135,11 @@ export default function PwaManager() {
             <span><strong>Instalar PR Control</strong><small>Úsala sin pestañas ni controles del navegador.</small></span>
             <button type="button" onClick={installApp}>Instalar</button>
             <button type="button" className="pwa-close" onClick={() => setInstallPrompt(null)} aria-label="Cerrar sugerencia de instalación"><X size={14} /></button>
-          </motion.aside>
+          </m.aside>
         )}
 
         {showIosHint && (
-          <motion.aside
+          <m.aside
             className="pwa-card pwa-install pwa-ios"
             initial={enterFrom}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -146,7 +149,7 @@ export default function PwaManager() {
             <span className="pwa-card-icon"><Share2 size={17} /></span>
             <span><strong>Instalar en este iPhone</strong><small>Pulsa Compartir y luego “Agregar a inicio”.</small></span>
             <button type="button" className="pwa-close" onClick={dismissIosHint} aria-label="Cerrar sugerencia de instalación"><X size={14} /></button>
-          </motion.aside>
+          </m.aside>
         )}
       </AnimatePresence>
     </div>

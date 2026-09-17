@@ -1,4 +1,4 @@
-import type { ActivityUser, LifecycleStatus, Participant, PullRequest, PrStatus, ReviewDecision, ReviewDecisionConfidence, ReviewDecisionReason, ReviewerState } from '../types'
+import type { ActivityUser, DeveloperActivityKind, LifecycleStatus, Participant, PullRequest, PullRequestActivity, PrStatus, ReviewDecision, ReviewDecisionConfidence, ReviewDecisionReason, ReviewerState } from '../types'
 
 const normalizeName = (name?: string) => name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
 
@@ -9,6 +9,14 @@ const matchesActivityUser = (user: ActivityUser | undefined, participant: Partic
   const participantName = normalizeName(participant.user?.display_name)
   return Boolean(participantName && normalizeName(user?.display_name) === participantName)
 }
+
+const matchesPullRequestAuthor = (pr: PullRequest, user?: ActivityUser) => Boolean(
+  (pr.author?.uuid && user?.uuid === pr.author.uuid)
+  || (pr.author?.display_name && normalizeName(user?.display_name) === normalizeName(pr.author.display_name))
+  || (pr.author?.nickname && normalizeName(user?.display_name) === normalizeName(pr.author.nickname)),
+)
+
+const activityDate = (item: PullRequestActivity) => item.update?.date || item.comment?.updated_on || item.comment?.created_on || item.approval?.date
 
 function latestReviewDate(pr: PullRequest, matchesUser: (user?: ActivityUser) => boolean) {
   const dates = [
@@ -33,12 +41,37 @@ type ActivityEvidence = {
   reason: ReviewDecisionReason
   reviewedCommit?: string
   latestCommit?: string
+  latestDeveloperActivity?: DeveloperActivityKind
 }
 
 function getReviewEvidence(pr: PullRequest, reviewDate?: string, matchesUser?: (user?: ActivityUser) => boolean): ActivityEvidence {
   if (!reviewDate) return { hasNewActivity: false, confidence: 'unknown', reason: 'no_review_recorded' }
 
   const reviewTimestamp = new Date(reviewDate).getTime()
+  const activityAfterReview = (pr.activity || []).filter((item) => {
+    const date = activityDate(item)
+    return Boolean(date && new Date(date).getTime() > reviewTimestamp)
+  })
+  const developerActivityAfterReview = activityAfterReview.filter((item) => matchesPullRequestAuthor(pr, item.update?.author || item.comment?.user))
+  const hasDeveloperCommit = developerActivityAfterReview.some((item) => Boolean(item.update?.source?.commit?.hash))
+  const hasDeveloperComment = developerActivityAfterReview.some((item) => Boolean(item.comment && !item.comment.deleted))
+  const latestDeveloperActivity = hasDeveloperCommit && hasDeveloperComment
+    ? 'commit_and_comment'
+    : hasDeveloperCommit
+      ? 'commit'
+      : hasDeveloperComment
+        ? 'comment'
+        : undefined
+
+  if (latestDeveloperActivity) {
+    return {
+      hasNewActivity: true,
+      confidence: 'confirmed',
+      reason: 'developer_activity_after_review',
+      latestDeveloperActivity,
+    }
+  }
+
   const updateEvents = (pr.activity || []).filter((item) => item.update?.date)
 
   if (updateEvents.length) {
@@ -49,7 +82,13 @@ function getReviewEvidence(pr: PullRequest, reviewDate?: string, matchesUser?: (
     const baseline = updatesBeforeReview[updatesBeforeReview.length - 1]?.update?.source?.commit?.hash
     const latestCommit = knownUpdates[knownUpdates.length - 1]?.update?.source?.commit?.hash
 
-    if (!baseline) return { hasNewActivity: false, confidence: 'unknown', reason: 'activity_incomplete', latestCommit }
+    if (!baseline) {
+      if (!knownUpdates.length) return { hasNewActivity: false, confidence: 'unknown', reason: 'activity_incomplete', latestCommit }
+      const latestReviewerActivity = matchesUser ? latestReviewDate(pr, matchesUser) : undefined
+      const hasNewTimestamp = new Date(pr.updated_on).getTime() > reviewTimestamp
+      if (latestReviewerActivity && new Date(latestReviewerActivity).getTime() >= new Date(pr.updated_on).getTime()) return { hasNewActivity: false, confidence: 'inferred', reason: 'reviewer_activity_after_review', latestCommit }
+      return { hasNewActivity: hasNewTimestamp, confidence: hasNewTimestamp ? 'inferred' : 'unknown', reason: hasNewTimestamp ? 'updated_after_review' : 'activity_incomplete', latestCommit }
+    }
 
     const hasNewCommit = knownUpdates.some((item) => {
       const update = item.update
@@ -57,7 +96,7 @@ function getReviewEvidence(pr: PullRequest, reviewDate?: string, matchesUser?: (
         && new Date(update.date!).getTime() > reviewTimestamp
         && update.source?.commit?.hash !== baseline
         && hasIdentifiableUser(update.author)
-        && !matchesUser?.(update.author))
+        && (matchesPullRequestAuthor(pr, update.author) || (!pr.author?.uuid && !pr.author?.display_name && !pr.author?.nickname && !matchesUser?.(update.author))))
     })
     return {
       hasNewActivity: hasNewCommit,
@@ -80,7 +119,7 @@ function getReviewEvidence(pr: PullRequest, reviewDate?: string, matchesUser?: (
   return { hasNewActivity: hasNewTimestamp, confidence: 'inferred', reason: hasNewTimestamp ? 'updated_after_review' : 'same_commit_after_review' }
 }
 
-type DecisionEvidence = Pick<ReviewDecision, 'reviewDate' | 'reviewedCommit' | 'latestCommit'>
+type DecisionEvidence = Pick<ReviewDecision, 'reviewDate' | 'reviewedCommit' | 'latestCommit' | 'latestDeveloperActivity'>
 const decision = (status: PrStatus, reason: ReviewDecisionReason, confidence: ReviewDecisionConfidence, evidence: Partial<DecisionEvidence> = {}): ReviewDecision => ({ status, reason, confidence, ...evidence })
 
 export function getLifecycleStatus(pr: PullRequest): LifecycleStatus {
@@ -133,7 +172,7 @@ export function getReviewDecision(pr: PullRequest, myUuid?: string, myDisplayNam
 
   if (!reviewDate) return decision('unreviewed', isFreshPullRequest(pr) ? 'new_pr' : 'no_review_recorded', isFreshPullRequest(pr) ? 'confirmed' : 'unknown')
   const evidence = getReviewEvidence(pr, reviewDate, matchesUser)
-  if (evidence.hasNewActivity) return decision('changes', evidence.reason, evidence.confidence, { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit })
+  if (evidence.hasNewActivity) return decision('changes', evidence.reason, evidence.confidence, { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit, latestDeveloperActivity: evidence.latestDeveloperActivity })
   if (participant?.state === 'changes_requested') return decision('waiting', 'waiting_for_developer', evidence.confidence, { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit })
   return decision('current', evidence.reason, evidence.confidence, { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit })
 }

@@ -65,6 +65,59 @@ function EmptyQueue({ repos, filterLifecycle, filterReview, hasLoadError, onRese
   return <div className="empty-state" role="status"><span className="empty-icon"><SlidersHorizontal size={24} /></span><span className="empty-kicker">Sin coincidencias</span><h3>No hay resultados con estos filtros</h3><p>La información sigue disponible; prueba con otra combinación.</p><button type="button" className="button button-secondary" onClick={onReset}>Restablecer filtros</button></div>
 }
 
+function QueueStatus({ errorCount, allRepositoriesFailed, allPrs, onRetry, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress }: {
+  errorCount: number
+  allRepositoriesFailed: boolean
+  allPrs: PullRequest[]
+  onRetry: () => void
+  initialLoading: boolean
+  loadingIsSlow: boolean
+  isOnline: boolean
+  fetchedRepositories: number
+  repositoryCount: number
+  loadingProgress: number
+}) {
+  return <>
+    {errorCount > 0 && allPrs.length > 0 && <div className="error-banner" role="alert"><span><CircleAlert size={18} /></span><div><strong>{allRepositoriesFailed ? 'No pudimos conectar con Bitbucket' : errorCount === 1 ? '1 repositorio no pudo actualizarse' : `${errorCount} repositorios no pudieron actualizarse`}</strong><p>Conservamos la información disponible. Revisa tus credenciales o intenta nuevamente.</p></div><button type="button" className="button button-secondary" onClick={onRetry}>Reintentar</button></div>}
+    {initialLoading && <div className={`loading-status${loadingIsSlow ? ' is-slow' : ''}${!isOnline ? ' is-offline' : ''}`} role="status" aria-live="polite"><span className="loading-status-icon">{isOnline ? <RefreshCw className="spin" size={18} /> : <WifiOff size={18} />}</span><span><strong>{!isOnline ? 'Sin conexión a internet' : loadingIsSlow ? 'Bitbucket está tardando un poco' : 'Preparando tu cola'}</strong><small>{!isOnline ? 'La sincronización continuará cuando recuperes la conexión.' : loadingIsSlow ? `${fetchedRepositories} de ${repositoryCount} repositorios listos · seguimos intentando.` : `${fetchedRepositories} de ${repositoryCount} repositorios sincronizados`}</small></span><span className="loading-progress" role="progressbar" aria-label="Repositorios sincronizados" aria-valuemin={0} aria-valuemax={repositoryCount} aria-valuenow={fetchedRepositories}><i style={{ width: `${loadingProgress}%` }} /></span></div>}
+  </>
+}
+
+function QueueResults({ visiblePrs, sortedPrs, repos, session, highlightedPrKey, gitWorkflowSettings, onGitWorkflowSettingsChange, onOpenPreparation, initialLoading, allPrs, filterLifecycle, filterReview, hasLoadError, onReset, onRetry, visibleLimit, onLoadMore, fetching, isOnline }: {
+  visiblePrs: PullRequest[]
+  sortedPrs: PullRequest[]
+  repos: RepoConfig[]
+  session: Session
+  highlightedPrKey: string | null
+  gitWorkflowSettings: GitWorkflowSettings
+  onGitWorkflowSettingsChange: (settings: GitWorkflowSettings) => void
+  onOpenPreparation: () => void
+  initialLoading: boolean
+  allPrs: PullRequest[]
+  filterLifecycle: LifecycleFilter
+  filterReview: ReviewFilter
+  hasLoadError: boolean
+  onReset: () => void
+  onRetry: () => void
+  visibleLimit: number
+  onLoadMore: () => void
+  fetching: boolean
+  isOnline: boolean
+}) {
+  return <section className="queue-section" aria-labelledby="pull-requests-title">
+    <header className="queue-section-heading"><h2 id="pull-requests-title">Prioridad de revisión</h2><span className={`queue-sync-note ${fetching || !isOnline ? 'is-visible' : ''}`}>{isOnline ? <RefreshCw size={14} className={fetching ? 'spin' : ''} /> : <WifiOff size={14} />}{isOnline ? 'Actualizando actividad' : 'Sin conexión'}</span></header>
+    <div className="queue-surface">
+      <div className="queue-columns" aria-hidden="true"><span>Pull request · relevo</span><span>Actividad QA</span><span>Acciones</span></div>
+      <div className="pr-list" aria-busy={initialLoading && !allPrs.length}>
+        <AnimatePresence mode="popLayout">{visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenSettings={onOpenPreparation} />)}</AnimatePresence>
+        {initialLoading && !allPrs.length && <><PullRequestSkeleton /><PullRequestSkeleton /><PullRequestSkeleton /></>}
+        {!initialLoading && !sortedPrs.length && <EmptyQueue repos={repos} filterLifecycle={filterLifecycle} filterReview={filterReview} hasLoadError={hasLoadError} onReset={onReset} onConfigure={onOpenPreparation} onRetry={onRetry} />}
+      </div>
+    </div>
+    {visibleLimit < sortedPrs.length && <button type="button" className="load-more" onClick={onLoadMore}>Mostrar 20 más <span>{sortedPrs.length - visibleLimit} restantes</span></button>}
+  </section>
+}
+
 type QueueViewProps = {
   repos: RepoConfig[]
   allPrs: PullRequest[]
@@ -133,21 +186,7 @@ export default function QueueView({
   return <>
     <FilterToolbar filterLifecycle={filterLifecycle} setFilterLifecycle={setFilterLifecycle} filterRepo={filterRepo} setFilterRepo={setFilterRepo} filterReview={filterReview} setFilterReview={setFilterReview} statusCounts={statusCounts} repos={repos} allPrs={allPrs} resultCount={sortedPrs.length} onReset={onReset} />
 
-    {errorCount > 0 && allPrs.length > 0 && <div className="error-banner" role="alert"><span><CircleAlert size={18} /></span><div><strong>{allRepositoriesFailed ? 'No pudimos conectar con Bitbucket' : errorCount === 1 ? '1 repositorio no pudo actualizarse' : `${errorCount} repositorios no pudieron actualizarse`}</strong><p>Conservamos la información disponible. Revisa tus credenciales o intenta nuevamente.</p></div><button type="button" className="button button-secondary" onClick={onRetry}>Reintentar</button></div>}
-
-    {initialLoading && <div className={`loading-status${loadingIsSlow ? ' is-slow' : ''}${!isOnline ? ' is-offline' : ''}`} role="status" aria-live="polite"><span className="loading-status-icon">{isOnline ? <RefreshCw className="spin" size={18} /> : <WifiOff size={18} />}</span><span><strong>{!isOnline ? 'Sin conexión a internet' : loadingIsSlow ? 'Bitbucket está tardando un poco' : 'Preparando tu cola'}</strong><small>{!isOnline ? 'La sincronización continuará cuando recuperes la conexión.' : loadingIsSlow ? `${fetchedRepositories} de ${repositoryCount} repositorios listos · seguimos intentando.` : `${fetchedRepositories} de ${repositoryCount} repositorios sincronizados`}</small></span><span className="loading-progress" role="progressbar" aria-label="Repositorios sincronizados" aria-valuemin={0} aria-valuemax={repositoryCount} aria-valuenow={fetchedRepositories}><i style={{ width: `${loadingProgress}%` }} /></span></div>}
-
-    <section className="queue-section" aria-labelledby="pull-requests-title">
-      <header className="queue-section-heading"><h2 id="pull-requests-title">Prioridad de revisión</h2><span className={`queue-sync-note ${fetching || !isOnline ? 'is-visible' : ''}`}>{isOnline ? <RefreshCw size={14} className={fetching ? 'spin' : ''} /> : <WifiOff size={14} />}{isOnline ? 'Actualizando actividad' : 'Sin conexión'}</span></header>
-      <div className="queue-surface">
-        <div className="queue-columns" aria-hidden="true"><span>Pull request · relevo</span><span>Actividad QA</span><span>Acciones</span></div>
-        <div className="pr-list" aria-busy={initialLoading && !allPrs.length}>
-          <AnimatePresence mode="popLayout">{visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenSettings={onOpenPreparation} />)}</AnimatePresence>
-          {initialLoading && !allPrs.length && <><PullRequestSkeleton /><PullRequestSkeleton /><PullRequestSkeleton /></>}
-          {!initialLoading && !sortedPrs.length && <EmptyQueue repos={repos} filterLifecycle={filterLifecycle} filterReview={filterReview} hasLoadError={hasLoadError} onReset={onReset} onConfigure={onOpenPreparation} onRetry={onRetry} />}
-        </div>
-      </div>
-      {visibleLimit < sortedPrs.length && <button type="button" className="load-more" onClick={onLoadMore}>Mostrar 20 más <span>{sortedPrs.length - visibleLimit} restantes</span></button>}
-    </section>
+    <QueueStatus errorCount={errorCount} allRepositoriesFailed={allRepositoriesFailed} allPrs={allPrs} onRetry={onRetry} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} />
+    <QueueResults visiblePrs={visiblePrs} sortedPrs={sortedPrs} repos={repos} session={session} highlightedPrKey={highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenPreparation={onOpenPreparation} initialLoading={initialLoading} allPrs={allPrs} filterLifecycle={filterLifecycle} filterReview={filterReview} hasLoadError={hasLoadError} onReset={onReset} onRetry={onRetry} visibleLimit={visibleLimit} onLoadMore={onLoadMore} fetching={fetching} isOnline={isOnline} />
   </>
 }

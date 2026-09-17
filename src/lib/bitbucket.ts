@@ -18,7 +18,20 @@ async function allPagesFully<T>(url: string, session: Session, limit = 100) {
   }
   return { items, complete: !next }
 }
-const activityFields = 'values.pull_request.id,values.comment.created_on,values.comment.updated_on,values.comment.deleted,values.comment.user.uuid,values.comment.user.display_name,values.approval.date,values.approval.user.uuid,values.approval.user.display_name,values.update.date,values.update.author.uuid,values.update.author.display_name,values.update.state,values.update.source.commit.hash,next'
+const activityFields = 'values.pull_request.id,values.comment.id,values.comment.parent.id,values.comment.created_on,values.comment.updated_on,values.comment.deleted,values.comment.user.uuid,values.comment.user.display_name,values.approval.date,values.approval.user.uuid,values.approval.user.display_name,values.update.date,values.update.author.uuid,values.update.author.display_name,values.update.state,values.update.source.commit.hash,next'
+const activityDate = (item: PullRequestActivity) => item.update?.date || item.comment?.updated_on || item.comment?.created_on || item.approval?.date
+const activityTimestamp = (item: PullRequestActivity) => {
+  const date = activityDate(item)
+  return date ? new Date(date).getTime() : 0
+}
+const normalizedUserName = (name?: string) => name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
+const hasReviewHistorySignal = (pr: Omit<PullRequest, 'repo'>, session: Session) => (pr.participants || []).some((participant) => {
+  if (participant.state === 'changes_requested') return true
+  return Boolean(
+    (session.uuid && participant.user?.uuid === session.uuid)
+    || (session.displayName && normalizedUserName(participant.user?.display_name) === normalizedUserName(session.displayName)),
+  )
+})
 export async function getPullRequests(repo: RepoConfig, session: Session) {
   const base = `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests`
   const states = ['OPEN', 'MERGED', 'DECLINED']
@@ -31,9 +44,16 @@ export async function getPullRequests(repo: RepoConfig, session: Session) {
     activityByPullRequest.set(id, [...(activityByPullRequest.get(id) || []), item])
   })
 
-  const missingOpenPullRequests = results.filter((pr) => pr.state === 'OPEN' && !activityByPullRequest.has(pr.id))
-  const fallbackActivity = await Promise.all(missingOpenPullRequests.map((pr) => allPages<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session)))
-  missingOpenPullRequests.forEach((pr, index) => activityByPullRequest.set(pr.id, fallbackActivity[index]))
+  const incompleteOpenPullRequests = results.filter((pr) => {
+    if (pr.state !== 'OPEN' || !hasReviewHistorySignal(pr, session)) return false
+    const currentActivity = activityByPullRequest.get(pr.id) || []
+    const latestActivity = Math.max(0, ...currentActivity.map(activityTimestamp))
+    const pullRequestUpdated = new Date(pr.updated_on).getTime()
+    const hasUpdateAtLatestTimestamp = currentActivity.some((item) => item.update?.date && Math.abs(new Date(item.update.date).getTime() - pullRequestUpdated) < 10_000)
+    return !currentActivity.length || pullRequestUpdated > latestActivity + 1_000 || !hasUpdateAtLatestTimestamp
+  })
+  const fallbackActivity = await Promise.all(incompleteOpenPullRequests.map((pr) => allPages<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session)))
+  incompleteOpenPullRequests.forEach((pr, index) => activityByPullRequest.set(pr.id, fallbackActivity[index]))
 
   return results.map((pr) => ({ ...pr, activity: activityByPullRequest.get(pr.id) || [], repo }))
 }
@@ -66,14 +86,14 @@ export async function getStats(pr: PullRequest, session: Session): Promise<PrSta
 
 type BitbucketCommit = { hash?: string; message?: string; author?: { raw?: string }; date?: string; links?: { html?: { href?: string } } }
 type BitbucketDiffstat = { lines_added?: number; lines_removed?: number; status?: string; new?: { path?: string; type?: string }; old?: { path?: string; type?: string } }
-type BitbucketComment = { content?: { raw?: string }; user?: ActivityUser; created_on?: string; updated_on?: string; inline?: { to?: number; from?: number; path?: string }; links?: { html?: { href?: string } } }
+type BitbucketComment = { id?: number; parent?: { id?: number }; content?: { raw?: string }; user?: ActivityUser; created_on?: string; updated_on?: string; deleted?: boolean; inline?: { to?: number; from?: number; path?: string }; links?: { html?: { href?: string } } }
 export type ReviewContextDetails = { commits: ReviewContextCommit[]; changedFiles: ReviewContextFile[]; comments: ReviewContextComment[]; diffstat: ReviewContextDiffstat; activity: PullRequestActivity[]; unavailable: string[] }
 
 const reviewContextFields = {
   commits: 'values.hash,values.message,values.author.raw,values.date,values.links.html.href,next',
   files: 'values.lines_added,values.lines_removed,values.status,values.new.path,values.new.type,values.old.path,values.old.type,next',
-  comments: 'values.content.raw,values.user.uuid,values.user.display_name,values.created_on,values.updated_on,values.inline,values.links.html.href,next',
-  activity: 'values.pull_request.id,values.comment.created_on,values.comment.updated_on,values.comment.deleted,values.comment.user.uuid,values.comment.user.display_name,values.approval.date,values.approval.user.uuid,values.approval.user.display_name,values.update.date,values.update.author.uuid,values.update.author.display_name,values.update.state,next',
+  comments: 'values.id,values.parent.id,values.content.raw,values.user.uuid,values.user.display_name,values.created_on,values.updated_on,values.deleted,values.inline,values.links.html.href,next',
+  activity: 'values.pull_request.id,values.comment.id,values.comment.parent.id,values.comment.created_on,values.comment.updated_on,values.comment.deleted,values.comment.user.uuid,values.comment.user.display_name,values.approval.date,values.approval.user.uuid,values.approval.user.display_name,values.update.date,values.update.author.uuid,values.update.author.display_name,values.update.state,values.update.source.commit.hash,next',
 } as const
 
 const displayActivityUser = (user?: ActivityUser) => user?.display_name || undefined
@@ -92,6 +112,8 @@ export async function getReviewContextDetails(pr: PullRequest, session: Session)
   ])
 
   const comments = commentsResult.value.map((comment): ReviewContextComment => ({
+    id: comment.id,
+    parentId: comment.parent?.id,
     author: displayActivityUser(comment.user),
     date: comment.updated_on || comment.created_on,
     content: comment.content?.raw || '',

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import type { RefObject } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { BellRing, Check, LogOut, Monitor, Volume2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
@@ -41,7 +41,7 @@ export default function SettingsDialog({
   }
 
   return (
-    <motion.div
+    <m.div
       className="dialog-backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -49,7 +49,7 @@ export default function SettingsDialog({
       transition={{ duration: reduceMotion ? 0.08 : 0.18 }}
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <motion.section
+      <m.section
         ref={dialogRef}
         className="settings-dialog"
         role="dialog"
@@ -88,7 +88,7 @@ export default function SettingsDialog({
         <footer className="settings-footer">
           <button type="button" className="button button-primary" data-autofocus onClick={onClose}><Check size={17} /> Cerrar configuración</button>
         </footer>
-      </motion.section>
-    </motion.div>
+      </m.section>
+    </m.div>
   )
 }

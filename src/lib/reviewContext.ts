@@ -137,7 +137,7 @@ export function buildReviewContextMarkdown(context: ReviewContext) {
     '',
     '## Review comments',
     '',
-    context.comments.length ? context.comments.map((comment) => `- **${markdownValue(comment.author)}**${comment.date ? ` · ${comment.date}` : ''}${comment.path ? ` · ${markdownCode(`${comment.path}${comment.line ? `:${comment.line}` : ''}`)}` : ''}: ${comment.content}`).join('\n') : 'No hay comentarios disponibles.',
+    context.comments.length ? context.comments.map((comment) => `- **${markdownValue(comment.author)}**${comment.parentId ? ' · respuesta' : ''}${comment.date ? ` · ${comment.date}` : ''}${comment.path ? ` · ${markdownCode(`${comment.path}${comment.line ? `:${comment.line}` : ''}`)}` : ''}: ${comment.content}`).join('\n') : 'No hay comentarios disponibles.',
     '',
     '## Relevant activity',
     '',

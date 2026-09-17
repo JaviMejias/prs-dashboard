@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rangeFor } from './DateRangePicker'
+import { rangeFor } from '../lib/dateRange'
 
 describe('rangeFor', () => {
   it('returns a valid current month range', () => {

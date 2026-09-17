@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import type { RefObject } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import {
   ArrowUpRight,
   CheckCircle2,
@@ -57,7 +57,7 @@ export default function NotificationPanel({
   useDismissableLayer(true, panelRef, close, triggerRef)
 
   return (
-    <motion.div
+    <m.div
       ref={panelRef}
       className="notification-panel"
       role="dialog"
@@ -121,6 +121,6 @@ export default function NotificationPanel({
           <div className="overlay-empty"><CheckCircle2 size={24} /><strong>Tu cola de avisos está al día</strong><span>Te avisaremos cuando llegue un PR nuevo o vuelva a ser tu turno.</span></div>
         )}
       </div>
-    </motion.div>
+    </m.div>
   )
 }

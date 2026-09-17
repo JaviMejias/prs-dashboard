@@ -136,5 +136,6 @@ export function resolveRulepacksForRepository(repo: RepoConfig, extraRules: Revi
     rulepacks.push({ ...metadata, reviewRulesContent: rulepack.contents[rulepack.reviewRules], referenceContents: (rulepack.references || []).map((path) => ({ path, content: rulepack.contents[path] })) })
   }
   const resolvedRules = resolveRulesForRepository(repo, extraRules)
-  return { rulepacks, rules: resolvedRules.rules, unavailable: [...unavailable, ...resolvedRules.unavailable.filter((item) => !unavailable.includes(item))] }
+  const unavailableSet = new Set(unavailable)
+  return { rulepacks, rules: resolvedRules.rules, unavailable: [...unavailable, ...resolvedRules.unavailable.filter((item) => !unavailableSet.has(item))] }
 }

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
+const numberFormatter = new Intl.NumberFormat('es-CL')
+
 export default function AnimatedNumber({ value }: { value: number }) {
   const previousValue = useRef(0)
   const [displayValue, setDisplayValue] = useState(0)
@@ -29,5 +31,5 @@ export default function AnimatedNumber({ value }: { value: number }) {
     return () => window.cancelAnimationFrame(frame)
   }, [value])
 
-  return <>{new Intl.NumberFormat('es-CL').format(displayValue)}</>
+  return <>{numberFormatter.format(displayValue)}</>
 }

@@ -1,6 +1,6 @@
 import { useCallback, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { Check, ChevronDown, Filter, GitPullRequest, RotateCcw, ShieldCheck, SlidersHorizontal, UserRound, X } from 'lucide-react'
 import { useDismissableLayer, useModalDialog } from '../hooks/useDismissableLayer'
 import { lifecycleFilterLabels } from '../lib/dashboard'
@@ -48,7 +48,7 @@ function FilterMenu({
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div
+          <m.div
             ref={menuRef}
             id={menuId}
             className="filter-menu"
@@ -76,7 +76,7 @@ function FilterMenu({
                 {option.value === value && <Check size={15} />}
               </button>
             ))}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -180,7 +180,7 @@ export default function FilterToolbar({
   const mobileSheet = (
     <AnimatePresence>
       {mobileOpen && (
-        <motion.div
+        <m.div
           className="sheet-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -188,7 +188,7 @@ export default function FilterToolbar({
           transition={{ duration: reduceMotion ? 0.08 : 0.18 }}
           onMouseDown={(event) => event.target === event.currentTarget && setMobileOpen(false)}
         >
-          <motion.section
+          <m.section
             ref={sheetRef}
             className="filter-sheet"
             role="dialog"
@@ -214,8 +214,8 @@ export default function FilterToolbar({
               <button type="button" className="button button-secondary" onClick={onReset}><RotateCcw size={16} /> Restablecer</button>
               <button type="button" className="button button-primary" onClick={() => setMobileOpen(false)}>Ver {resultCount} resultados</button>
             </footer>
-          </motion.section>
-        </motion.div>
+          </m.section>
+        </m.div>
       )}
     </AnimatePresence>
   )

@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { AlertTriangle, X } from 'lucide-react'
 import { useModalDialog } from '../hooks/useDismissableLayer'
 
@@ -11,8 +11,8 @@ export default function ConfirmDialog({ title, description, confirmLabel, onConf
   useModalDialog(true, dialogRef, close)
 
   return createPortal(
-    <div className="dialog-backdrop confirm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <motion.section
+    <div className="dialog-backdrop confirm-dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <m.section
         ref={dialogRef}
         className="confirm-dialog"
         role="alertdialog"
@@ -35,7 +35,7 @@ export default function ConfirmDialog({ title, description, confirmLabel, onConf
           <button type="button" className="button button-ghost" data-autofocus onClick={onClose}>Cancelar</button>
           <button type="button" className="button button-danger" onClick={() => { onConfirm(); onClose() }}>{confirmLabel}</button>
         </footer>
-      </motion.section>
+      </m.section>
     </div>,
     document.body,
   )

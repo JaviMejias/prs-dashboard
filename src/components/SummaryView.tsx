@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { useMemo, useState } from 'react'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, CircleAlert, Clock3, GitPullRequest, MessageCircle, RefreshCw, RotateCcw, ScanEye, Sparkles, TrendingUp } from 'lucide-react'
 import AnimatedNumber from './AnimatedNumber'
 import ConfirmDialog from './ConfirmDialog'
-import DateRangePicker, { rangeFor, type DateRange } from './DateRangePicker'
+import DateRangePicker from './DateRangePicker'
+import { rangeFor, type DateRange } from '../lib/dateRange'
 import { formatDate, relativeTime } from '../lib/dashboard'
-import { historyCoverageForRepositories, historyPullRequestsForRepositories, mergeReviewHistory } from '../lib/reviewHistory'
+import { historyCoverageForRepositories, historyPullRequestsForRepositories } from '../lib/reviewHistory'
 import { previousDateRange, summaryMetricsForRange, type SummaryEvent } from '../lib/summary'
-import { clearReviewHistory, emptyReviewHistory, getReviewHistory, saveReviewHistory } from '../lib/storage'
 import { useReviewHistorySync } from '../hooks/useReviewHistorySync'
 import { toast } from 'sonner'
 import type { PullRequest, RepoConfig, Session } from '../types'
@@ -70,62 +70,93 @@ function RecentActivity({ events }: { events: SummaryEvent[] }) {
   </section>
 }
 
+type SummaryMetrics = ReturnType<typeof summaryMetricsForRange>
+
+function SummaryDashboard({ summary, previousSummary, coverage, hasSyncErrors, range }: {
+  summary: SummaryMetrics
+  previousSummary: SummaryMetrics
+  coverage: 'complete' | 'partial' | 'empty'
+  hasSyncErrors: boolean
+  range: DateRange
+}) {
+  const reduceMotion = useReducedMotion()
+  const motionProps = reduceMotion ? {} : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: .24 } }
+  const heroTitle = hasSyncErrors
+    ? 'Hay datos guardados, pero falta actualizar una parte.'
+    : coverage === 'complete'
+      ? 'Trabajo registrado con contexto completo.'
+      : 'Tu actividad está tomando forma.'
+  const heroDescription = hasSyncErrors
+    ? 'Conservamos lo que ya estaba disponible y puedes reintentar los repositorios pendientes.'
+    : coverage === 'complete'
+      ? 'El histórico cubre todos tus repositorios configurados.'
+      : 'La comparación mejorará a medida que se complete el histórico local.'
+
+  return <m.div className="summary-dashboard" key={`${range.from}-${range.to}`} {...motionProps}>
+    <section className="summary-hero-panel">
+      <div className="summary-hero-copy"><span className="summary-panel-eyebrow"><ScanEye size={14} /> Tu pulso de revisión</span><h2>{heroTitle}</h2><p>{heroDescription}</p></div>
+      <div className="summary-hero-value"><strong><AnimatedNumber value={summary.reviewed} /></strong><span>PR con tu actividad</span><Delta current={summary.reviewed} previous={previousSummary.reviewed} /></div>
+    </section>
+    <div className="summary-metrics" aria-label="Métricas de revisión">
+      <div className="summary-metric metric-primary"><span><ScanEye size={18} /></span><strong><AnimatedNumber value={summary.reviewed} /></strong><small>PR revisados</small><Delta current={summary.reviewed} previous={previousSummary.reviewed} /></div>
+      <div className="summary-metric"><span><MessageCircle size={18} /></span><strong><AnimatedNumber value={summary.comments} /></strong><small>Comentarios</small><Delta current={summary.comments} previous={previousSummary.comments} /></div>
+      <div className="summary-metric"><span><CheckCircle2 size={18} /></span><strong><AnimatedNumber value={summary.approved} /></strong><small>Aprobados</small><Delta current={summary.approved} previous={previousSummary.approved} /></div>
+      <div className="summary-metric"><span><GitPullRequest size={18} /></span><strong><AnimatedNumber value={summary.changes} /></strong><small>Cambios solicitados</small><Delta current={summary.changes} previous={previousSummary.changes} /></div>
+    </div>
+    <div className="summary-dashboard-grid"><ActivityChart points={summary.activity} /><RepositoryBreakdown repositories={summary.repositories} /><RecentActivity events={summary.events} /></div>
+  </m.div>
+}
+
+type HistorySync = ReturnType<typeof useReviewHistorySync>
+
+function SummaryHistoryStatus({ sync, historyCount, reposCount }: { sync: HistorySync; historyCount: number; reposCount: number }) {
+  const message = sync.syncing
+    ? `Sincronizando histórico · ${sync.completedRepositories} de ${sync.repositoryCount} repositorios`
+    : sync.errorCount > 0
+      ? `Histórico con errores · ${historyCount} PR registrados`
+      : sync.isComplete
+        ? `Histórico completo · ${historyCount} PR registrados`
+        : `Histórico local parcial · ${historyCount} PR registrados`
+  const detail = sync.errorCount > 0
+    ? `${sync.errorCount} ${sync.errorCount === 1 ? 'repositorio no pudo' : 'repositorios no pudieron'} actualizarse. Puedes reintentar sin perder lo guardado.`
+    : 'La cola rápida sigue actualizando los PR abiertos mientras este histórico se completa.'
+  return <div className={`summary-history-status${sync.errorCount > 0 ? ' has-error' : ''}`} role={sync.errorCount > 0 ? 'alert' : 'status'} aria-live="polite">
+    <span className="summary-history-icon">{sync.errorCount > 0 ? <CircleAlert size={16} /> : <GitPullRequest size={16} />}</span>
+    <span className="summary-history-copy"><strong>{message}</strong><small>{detail}</small></span>
+    <button type="button" className="button button-secondary summary-history-refresh" onClick={sync.refresh} disabled={sync.syncing || !reposCount}><RefreshCw size={14} className={sync.syncing ? 'spin' : ''} />{sync.syncing ? 'Sincronizando…' : 'Actualizar histórico'}</button>
+  </div>
+}
+
+function SummaryBody({ sync, historyCount, summary, previousSummary, coverage, range }: { sync: HistorySync; historyCount: number; summary: SummaryMetrics; previousSummary: SummaryMetrics; coverage: 'complete' | 'partial' | 'empty'; range: DateRange }) {
+  const showLoading = sync.syncing && historyCount === 0
+  const showEmpty = !showLoading && !summary.events.length
+  return <AnimatePresence mode="wait">
+    {showLoading ? <SummarySkeleton /> : showEmpty ? <SummaryEmpty hasHistory={historyCount > 0} /> : <SummaryDashboard summary={summary} previousSummary={previousSummary} coverage={coverage} hasSyncErrors={sync.errorCount > 0} range={range} />}
+  </AnimatePresence>
+}
+
 export default function SummaryView({ prs, repos, session }: { prs: PullRequest[]; repos: RepoConfig[]; session: Session }) {
   const [range, setRange] = useState<DateRange>(() => rangeFor('month'))
-  const [history, setHistory] = useState(getReviewHistory)
   const [showRebuildConfirm, setShowRebuildConfirm] = useState(false)
-  const historySync = useReviewHistorySync(history, setHistory, repos, session)
-  const reduceMotion = useReducedMotion()
-
-  useEffect(() => {
-    if (!prs.length) return
-    setHistory((current) => {
-      const next = mergeReviewHistory(current, prs)
-      saveReviewHistory(next)
-      return next
-    })
-  }, [prs])
+  const historySync = useReviewHistorySync(prs, repos, session)
+  const { history } = historySync
 
   const summary = useMemo(() => summaryMetricsForRange(history, repos, session, range), [history, range, repos, session])
   const previousSummary = useMemo(() => summaryMetricsForRange(history, repos, session, previousDateRange(range)), [history, range, repos, session])
   const label = `${formatDate(`${range.from}T12:00:00`)} — ${formatDate(`${range.to}T12:00:00`)}`
   const coverage = historyCoverageForRepositories(history, repos)
   const historyCount = historyPullRequestsForRepositories(history, repos).length
-  const historyMessage = historySync.syncing
-    ? `Sincronizando histórico · ${historySync.completedRepositories} de ${historySync.repositoryCount} repositorios`
-    : historySync.errorCount > 0
-      ? `Histórico con errores · ${historyCount} PR registrados`
-    : coverage === 'complete'
-      ? `Histórico completo · ${historyCount} PR registrados`
-      : `Histórico local parcial · ${historyCount} PR registrados`
-  const historyDetail = historySync.errorCount > 0
-    ? `${historySync.errorCount} ${historySync.errorCount === 1 ? 'repositorio no pudo' : 'repositorios no pudieron'} actualizarse. Puedes reintentar sin perder lo guardado.`
-    : 'La cola rápida sigue actualizando los PR abiertos mientras este histórico se completa.'
   const rebuildHistory = () => {
-    clearReviewHistory()
-    setHistory(emptyReviewHistory())
+    historySync.reset()
     setShowRebuildConfirm(false)
     toast.success('Histórico local reiniciado', { description: 'Comenzaremos a reconstruirlo desde Bitbucket.' })
   }
-  const showLoading = historySync.syncing && historyCount === 0
-  const showEmpty = !showLoading && !summary.events.length
-  const motionProps = reduceMotion ? {} : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: .24 } }
 
   return <section className="product-view summary-view" aria-labelledby="summary-title">
     <div className="queue-intro"><div><span className="section-kicker">Actividad personal</span><h1 id="summary-title">Tu resumen</h1><p>Una lectura rápida de tu trabajo de revisión en Bitbucket.</p></div><span className="view-period"><TrendingUp size={16} /> {label}</span></div>
     <DateRangePicker value={range} onChange={setRange} />
-    <div className={`summary-history-status${historySync.errorCount > 0 ? ' has-error' : ''}`} role={historySync.errorCount > 0 ? 'alert' : 'status'} aria-live="polite">
-      <span className="summary-history-icon">{historySync.errorCount > 0 ? <CircleAlert size={16} /> : <GitPullRequest size={16} />}</span>
-      <span className="summary-history-copy"><strong>{historyMessage}</strong><small>{historyDetail}</small></span>
-      <button type="button" className="button button-secondary summary-history-refresh" onClick={historySync.refresh} disabled={historySync.syncing || !repos.length}><RefreshCw size={14} className={historySync.syncing ? 'spin' : ''} />{historySync.syncing ? 'Sincronizando…' : 'Actualizar histórico'}</button>
-    </div>
-    <AnimatePresence mode="wait">
-      {showLoading ? <SummarySkeleton /> : showEmpty ? <SummaryEmpty hasHistory={historyCount > 0} /> : <motion.div className="summary-dashboard" key={`${range.from}-${range.to}`} {...motionProps}>
-        <section className="summary-hero-panel"><div className="summary-hero-copy"><span className="summary-panel-eyebrow"><ScanEye size={14} /> Tu pulso de revisión</span><h2>{historySync.errorCount > 0 ? 'Hay datos guardados, pero falta actualizar una parte.' : coverage === 'complete' ? 'Trabajo registrado con contexto completo.' : 'Tu actividad está tomando forma.'}</h2><p>{historySync.errorCount > 0 ? 'Conservamos lo que ya estaba disponible y puedes reintentar los repositorios pendientes.' : coverage === 'complete' ? 'El histórico cubre todos tus repositorios configurados.' : 'La comparación mejorará a medida que se complete el histórico local.'}</p></div><div className="summary-hero-value"><strong><AnimatedNumber value={summary.reviewed} /></strong><span>PR con tu actividad</span><Delta current={summary.reviewed} previous={previousSummary.reviewed} /></div></section>
-        <div className="summary-metrics" aria-label="Métricas de revisión"><div className="summary-metric metric-primary"><span><ScanEye size={18} /></span><strong><AnimatedNumber value={summary.reviewed} /></strong><small>PR revisados</small><Delta current={summary.reviewed} previous={previousSummary.reviewed} /></div><div className="summary-metric"><span><MessageCircle size={18} /></span><strong><AnimatedNumber value={summary.comments} /></strong><small>Comentarios</small><Delta current={summary.comments} previous={previousSummary.comments} /></div><div className="summary-metric"><span><CheckCircle2 size={18} /></span><strong><AnimatedNumber value={summary.approved} /></strong><small>Aprobados</small><Delta current={summary.approved} previous={previousSummary.approved} /></div><div className="summary-metric"><span><GitPullRequest size={18} /></span><strong><AnimatedNumber value={summary.changes} /></strong><small>Cambios solicitados</small><Delta current={summary.changes} previous={previousSummary.changes} /></div></div>
-        <div className="summary-dashboard-grid"><ActivityChart points={summary.activity} /><RepositoryBreakdown repositories={summary.repositories} /><RecentActivity events={summary.events} /></div>
-      </motion.div>}
-    </AnimatePresence>
+    <SummaryHistoryStatus sync={historySync} historyCount={historyCount} reposCount={repos.length} />
+    <SummaryBody sync={historySync} historyCount={historyCount} summary={summary} previousSummary={previousSummary} coverage={coverage} range={range} />
     <div className="summary-footer-note"><CalendarClock size={15} /> <span>Las cifras se calculan con tu histórico local y respetan el período seleccionado.</span><button type="button" className="text-button summary-history-reset" onClick={() => setShowRebuildConfirm(true)} disabled={historySync.syncing || !repos.length}><RotateCcw size={13} /> Reconstruir histórico</button></div>
     <AnimatePresence>{showRebuildConfirm && <ConfirmDialog title="¿Reconstruir el histórico local?" description="Se eliminará únicamente el histórico guardado en este navegador y se volverá a consultar Bitbucket. Tus repositorios y preferencias no cambiarán." confirmLabel="Reconstruir histórico" onConfirm={rebuildHistory} onClose={() => setShowRebuildConfirm(false)} />}</AnimatePresence>
   </section>
