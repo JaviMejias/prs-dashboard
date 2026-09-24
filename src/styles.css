@@ -1000,6 +1000,7 @@ input:focus-visible,
 .pr-title-link {
   width: fit-content;
   max-width: 100%;
+  min-width: 0;
   color: var(--text-primary);
   display: flex;
   align-items: flex-start;
@@ -1009,7 +1010,10 @@ input:focus-visible,
 
 .pr-title-link h2 {
   margin: 0;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: clamp(15px, 1.1vw, 17px);
   line-height: 1.38;
   font-weight: 640;
@@ -3537,17 +3541,20 @@ input:focus-visible,
   }
 
   .pr-title-link {
+    width: 100%;
+    padding-right: 28px;
     margin-top: 8px;
   }
 
   .pr-title-link h2 {
-    overflow: visible;
+    flex: 1 1 auto;
+    overflow: hidden;
     font-size: 16px;
     line-height: 1.42;
     white-space: normal;
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 2;
   }
 
   .pr-context {
