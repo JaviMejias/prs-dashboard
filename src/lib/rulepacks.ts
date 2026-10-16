@@ -29,19 +29,24 @@ const bundledRulepack: BundledRulepack = {
   contents: officialSources,
 }
 
-type OfficialRuleDefinition = Omit<ReviewRule, 'content' | 'source' | 'rulepackId' | 'sources'> & { sourcePath: keyof typeof officialSources; sources: string[] }
+type OfficialRuleDefinition = Omit<ReviewRule, 'content' | 'source' | 'rulepackId' | 'sources'> & { sourcePath: keyof typeof officialSources }
 
 const officialRuleDefinitions: OfficialRuleDefinition[] = [
-  { id: 'kontroller-review-guidelines', name: 'Guías generales de revisión', category: 'project', technology: 'Kontroller', version: '1.0.0', description: 'Criterios generales de revisión y compatibilidad del proyecto.', sourcePath: 'sources/agents.md', sources: ['/home/javier/.codex/AGENTS.md'] },
-  { id: 'kontroller-qa-review-summary', name: 'Resumen de revisión QA', category: 'general', technology: 'Kontroller', version: '1.0.0', description: 'Requisitos de alcance, trazabilidad y resumen de una revisión QA.', sourcePath: 'sources/kontroller-test-qa.md', sources: ['/home/javier/kontroller_test_qa.md'] },
-  { id: 'kontroller-engineering-conventions', name: 'Convenciones de ingeniería Kontroller', category: 'project', technology: 'Kontroller', version: '1.0.0', description: 'Convenciones de Pull Requests, Rails, CSS y JavaScript del proyecto.', sourcePath: 'sources/kontroller-conventions.md', sources: ['/mnt/c/Users/mejia/.codex/skills/kontroller-conventions/SKILL.md'] },
-  { id: 'kontroller-deep-pr-review', name: 'Revisión profunda de Pull Requests', category: 'general', technology: 'Kontroller', version: '1.0.0', description: 'Procedimiento completo para analizar diffs, dependencias, riesgos y regresiones.', sourcePath: 'sources/pull-request-review.md', sources: ['/mnt/c/Users/mejia/.codex/skills/kontroller-conventions/references/pull-request-review.md'] },
-  { id: 'kontroller-legacy-javascript', name: 'JavaScript legacy de Kontroller', category: 'technology', technology: 'jQuery / Turbolinks', version: '1.0.0', description: 'Compatibilidad y convenciones para las superficies JavaScript legacy.', sourcePath: 'sources/legacy-javascript.md', sources: ['/mnt/c/Users/mejia/.codex/skills/kontroller-conventions/references/legacy-javascript.md'] },
-  { id: 'kontroller-code-style', name: 'Estilo de código de Javier', category: 'general', version: '1.0.0', description: 'Convenciones de idioma, formato, comentarios y mantenimiento.', sourcePath: 'sources/javier-code-style.md', sources: ['/mnt/c/Users/mejia/.codex/skills/javier-code-style/SKILL.md'] },
-  { id: 'kontroller-ruby-rails-compatibility', name: 'Compatibilidad Ruby y Rails', category: 'framework', technology: 'Ruby 2.4.3 / Rails 5.1', version: '1.0.0', description: 'Compatibilidad, cambios seguros y convenciones para el stack Ruby on Rails.', sourcePath: 'sources/ruby-rails-development.md', sources: ['/mnt/c/Users/mejia/.codex/skills/ruby-rails-development/SKILL.md'] },
+  { id: 'kontroller-review-guidelines', name: 'Guías generales de revisión', category: 'project', technology: 'Kontroller', description: 'Criterios generales de revisión y compatibilidad del proyecto.', sourcePath: 'sources/agents.md' },
+  { id: 'kontroller-qa-review-summary', name: 'Resumen de revisión QA', category: 'general', technology: 'Kontroller', description: 'Requisitos de alcance, trazabilidad y resumen de una revisión QA.', sourcePath: 'sources/kontroller-test-qa.md' },
+  { id: 'kontroller-engineering-conventions', name: 'Convenciones de ingeniería Kontroller', category: 'project', technology: 'Kontroller', description: 'Convenciones de Pull Requests, Rails, CSS y JavaScript del proyecto.', sourcePath: 'sources/kontroller-conventions.md' },
+  { id: 'kontroller-deep-pr-review', name: 'Revisión profunda de Pull Requests', category: 'general', technology: 'Kontroller', description: 'Procedimiento completo para analizar diffs, dependencias, riesgos y regresiones.', sourcePath: 'sources/pull-request-review.md' },
+  { id: 'kontroller-legacy-javascript', name: 'JavaScript legacy de Kontroller', category: 'technology', technology: 'jQuery / Turbolinks', description: 'Compatibilidad y convenciones para las superficies JavaScript legacy.', sourcePath: 'sources/legacy-javascript.md' },
+  { id: 'kontroller-code-style', name: 'Estilo de código de Javier', category: 'general', description: 'Convenciones de idioma, formato, comentarios y mantenimiento.', sourcePath: 'sources/javier-code-style.md' },
+  { id: 'kontroller-ruby-rails-compatibility', name: 'Compatibilidad Ruby y Rails', category: 'framework', technology: 'Ruby 2.4.3 / Rails 5.1', description: 'Compatibilidad, cambios seguros y convenciones para el stack Ruby on Rails.', sourcePath: 'sources/ruby-rails-development.md' },
 ]
 
-const bundledRules: ReviewRule[] = officialRuleDefinitions.map(({ sourcePath, sources, ...definition }) => ({ ...definition, content: officialSources[sourcePath], source: 'git', rulepackId: officialReference, sources }))
+const bundledRules: ReviewRule[] = officialRuleDefinitions.map(({ sourcePath, ...definition }) => ({ ...definition, version: officialMetadata.version, content: officialSources[sourcePath].replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n\s*/, ''), source: 'git', rulepackId: officialReference, sources: [sourcePath] }))
+const migrateOfficialReference = (reference: string) => reference === 'kontroller-official@1.0.0' ? officialReference : reference
+const migrateRuleReference = (reference: string) => {
+  const match = bundledRules.find((rule) => reference === `${rule.id}@1.0.0`)
+  return match ? `${match.id}@${match.version}` : reference
+}
 
 const referenceFor = (id: string, version: string) => `${id}@${version}`
 
@@ -91,36 +96,46 @@ export function getAvailableRulepacks() {
 }
 
 export function getRulepack(reference: string) {
-  return reference === officialReference ? bundledRulepack : undefined
+  return migrateOfficialReference(reference) === officialReference ? bundledRulepack : undefined
 }
 
 export const rulepackReference = referenceFor
 export const ruleReference = (id: string, version = '1.0.0') => referenceFor(id, version)
+
+export function updateLocalRule(rules: ReviewRule[], repos: RepoConfig[], rule: ReviewRule, previousReference?: string) {
+  const reference = ruleReference(rule.id, rule.version)
+  if (rule.source !== 'local' || bundledRules.some((bundled) => bundled.id === rule.id)) throw new Error('No se puede reemplazar una regla oficial.')
+  if (rules.some((item) => ruleReference(item.id, item.version) === reference && reference !== previousReference)) throw new Error('Ya existe una regla con esa referencia.')
+  if (previousReference && !rules.some((item) => ruleReference(item.id, item.version) === previousReference)) throw new Error('La regla original ya no está disponible.')
+  const nextRules = previousReference ? rules.map((item) => ruleReference(item.id, item.version) === previousReference ? rule : item) : [...rules, rule]
+  const nextRepos = previousReference ? repos.map((repo) => ({ ...repo, ruleRefs: repo.ruleRefs && [...new Set(repo.ruleRefs.map((item) => item === previousReference ? reference : item))] })) : repos
+  return { rules: nextRules, repos: nextRepos }
+}
 
 export function getAvailableRules(extraRules: ReviewRule[] = []) {
   return [...bundledRules, ...extraRules].map((rule) => ({ ...rule, reference: ruleReference(rule.id, rule.version) }))
 }
 
 export function getRule(reference: string, extraRules: ReviewRule[] = []) {
-  return getAvailableRules(extraRules).find((rule) => rule.reference === reference)
+  return getAvailableRules(extraRules).find((rule) => rule.reference === migrateRuleReference(reference))
 }
 
 export function resolveRulesForRepository(repo: RepoConfig, extraRules: ReviewRule[] = []) {
   const catalog = getAvailableRules(extraRules)
   const selected = catalog.filter((rule) => rule.category === 'general').map((rule) => rule.reference)
   selected.push(...(repo.ruleRefs || []))
-  for (const packReference of repo.rulepackRefs || []) if (packReference === officialReference) bundledRules.forEach((rule) => selected.push(ruleReference(rule.id, rule.version)))
+  for (const packReference of repo.rulepackRefs || []) if (migrateOfficialReference(packReference) === officialReference) bundledRules.forEach((rule) => selected.push(ruleReference(rule.id, rule.version)))
   const rules: AppliedReviewRule[] = []
   const unavailable: string[] = []
   const seen = new Set<string>()
   selected.forEach((reference) => {
-    if (seen.has(reference)) return
-    seen.add(reference)
     const rule = getRule(reference, extraRules)
     if (!rule) { unavailable.push(`Regla ${reference}`); return }
+    if (seen.has(rule.reference)) return
+    seen.add(rule.reference)
     rules.push(rule)
   })
-  for (const packReference of repo.rulepackRefs || []) if (packReference !== officialReference) unavailable.push(`Rulepack ${packReference}`)
+  for (const packReference of repo.rulepackRefs || []) if (migrateOfficialReference(packReference) !== officialReference) unavailable.push(`Rulepack ${packReference}`)
   return { rules, unavailable }
 }
 
@@ -132,6 +147,7 @@ export function resolveRulepacksForRepository(repo: RepoConfig, extraRules: Revi
     if (!rulepack) { unavailable.push(`Rulepack ${reference}`); continue }
     const issues = validateRulepackMetadata(rulepack, rulepack.contents)
     if (issues.length) { unavailable.push(`${reference}: ${issues.join(', ')}`); continue }
+    if (rulepacks.some((pack) => pack.id === rulepack.id && pack.version === rulepack.version)) continue
     const { contents: _contents, ...metadata } = rulepack
     rulepacks.push({ ...metadata, reviewRulesContent: rulepack.contents[rulepack.reviewRules], referenceContents: (rulepack.references || []).map((path) => ({ path, content: rulepack.contents[path] })) })
   }

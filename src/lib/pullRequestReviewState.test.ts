@@ -23,7 +23,7 @@ function buildPullRequest(activity: PullRequestActivity[]): PullRequest {
 const myReview = { pull_request: { id: 14913 }, comment: { created_on: reviewDate, user: reviewer } }
 
 describe('getReviewDecision', () => {
-  it('detects a developer commit even without an older commit baseline', () => {
+  it('keeps the PR pending without claiming a new commit when the baseline is missing', () => {
     const pr = buildPullRequest([
       myReview,
       {
@@ -34,8 +34,8 @@ describe('getReviewDecision', () => {
 
     expect(getReviewDecision(pr, reviewer.uuid, reviewer.display_name)).toMatchObject({
       status: 'changes',
-      reason: 'developer_activity_after_review',
-      latestDeveloperActivity: 'commit',
+      reason: 'updated_after_review',
+      confidence: 'unknown',
     })
   })
 
@@ -57,6 +57,7 @@ describe('getReviewDecision', () => {
 
   it('preserves that both commits and comments happened after the review', () => {
     const pr = buildPullRequest([
+      { update: { date: '2026-09-16T10:00:00Z', author, source: { commit: { hash: 'baseline' } } } },
       myReview,
       {
         pull_request: { id: 14913 },
@@ -69,5 +70,35 @@ describe('getReviewDecision', () => {
     ])
 
     expect(getReviewDecision(pr, reviewer.uuid, reviewer.display_name).latestDeveloperActivity).toBe('commit_and_comment')
+  })
+
+  it('does not flag the author editing metadata on the same commit as new code', () => {
+    const pr = buildPullRequest([
+      { update: { date: '2026-09-16T10:00:00Z', author, source: { commit: { hash: 'same' } } } },
+      myReview,
+      { update: { date: '2026-09-17T12:00:00Z', author, source: { commit: { hash: 'same' } } } },
+    ])
+    pr.participants = [{ user: reviewer, approved: true, participated_on: reviewDate }]
+    expect(getReviewDecision(pr, reviewer.uuid)).toMatchObject({ status: 'current', reason: 'same_commit_after_review', confidence: 'confirmed' })
+  })
+
+  it('keeps an approved PR in attention when activity could not be loaded', () => {
+    const pr = { ...buildPullRequest([myReview]), activityComplete: false, updated_on: reviewDate }
+    expect(getReviewDecision(pr, reviewer.uuid)).toMatchObject({ status: 'changes', reason: 'activity_incomplete', confidence: 'unknown' })
+  })
+
+  it('does not confirm the same commit when a later update omits its hash', () => {
+    const pr = buildPullRequest([
+      { update: { date: '2026-09-16T10:00:00Z', source: { commit: { hash: 'baseline' } } } },
+      myReview,
+      { update: { date: '2026-09-17T12:00:00Z', author } },
+    ])
+    expect(getReviewDecision(pr, reviewer.uuid)).toMatchObject({ status: 'changes', confidence: 'unknown' })
+  })
+
+  it('does not hide a PR as waiting when the change request has no date', () => {
+    const pr = buildPullRequest([])
+    pr.participants = [{ user: reviewer, state: 'changes_requested' }]
+    expect(getReviewDecision(pr, reviewer.uuid).status).toBe('unreviewed')
   })
 })

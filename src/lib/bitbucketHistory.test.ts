@@ -53,7 +53,8 @@ describe('getPullRequests activity fallback', () => {
 
     const result = await getPullRequests(repo, session)
 
-    expect(result[0]?.activity[0]?.update?.source?.commit?.hash).toBe('abcdef123456')
+    expect(result.prs[0]?.activity?.[0]?.update?.source?.commit?.hash).toBe('abcdef123456')
+    expect(result.complete).toBe(true)
     expect(fetchMock).toHaveBeenCalledTimes(5)
     vi.unstubAllGlobals()
   })

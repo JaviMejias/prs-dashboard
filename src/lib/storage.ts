@@ -1,6 +1,6 @@
 import type { GitWorkflowSettings, IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, RepositoryTechnology, ReviewHistory, ReviewRule, Session } from '../types'
 const keys = { session: 'prcr:session', repos: 'prcr:repos', notices: 'prcr:notices', snapshot: 'prcr:snapshot', reviewHistory: 'prcr:review-history', notificationPreferences: 'prcr:notification-preferences', ignoreRules: 'prcr:ignore-rules', gitWorkflow: 'prcr:git-workflow', customRules: 'prcr:custom-rules', repositoryLibraryMigration: 'prcr:repository-library-migration' }
-const officialKontrollerRulepack = 'kontroller-official@1.0.0'
+const officialKontrollerRulepack = 'kontroller-official@1.1.0'
 const legacyKontrollerRulepack = 'kontroller-rails-legacy@1.0.0'
 export const kontrollerTestTechnologies: RepositoryTechnology[] = [
   { id: 'ruby-2-4-3', name: 'Ruby', version: '2.4.3', kind: 'language' },
@@ -33,7 +33,7 @@ export const saveSession = (s: Session) => saveJson(keys.session, s)
 export const clearSession = () => removeItem(keys.session)
 export function migrateKontrollerRepository(repo: RepoConfig): RepoConfig {
   if (repo.workspace.toLocaleLowerCase() !== 'kontroller_test' || repo.repo.toLocaleLowerCase() !== 'kontroller_test') return repo
-  const rulepackRefs = (repo.rulepackRefs || []).filter((reference) => reference !== legacyKontrollerRulepack && reference !== officialKontrollerRulepack)
+  const rulepackRefs = (repo.rulepackRefs || []).filter((reference) => reference !== legacyKontrollerRulepack && reference !== officialKontrollerRulepack && reference !== 'kontroller-official@1.0.0')
   return {
     ...repo,
     technologies: repo.technologies?.length ? repo.technologies : kontrollerTestTechnologies,

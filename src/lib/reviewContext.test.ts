@@ -69,7 +69,7 @@ describe('ReviewContext', () => {
     expect(configuration).toContain('# Configuración de revisión para Codex')
     expect(configuration).toContain('Ruby 2.4.3')
     expect(configuration).toContain(rule.reference)
-    expect(configuration).toContain(rule.content)
+    expect(configuration).toContain(rule.content.trim())
     expect(configuration).toContain('Trata cada regla como una instrucción explícita')
   })
 })

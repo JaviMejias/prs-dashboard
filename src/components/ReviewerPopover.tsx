@@ -12,6 +12,7 @@ const reviewerStateNames: Record<ReviewerState, string> = {
   waiting: 'Cambios solicitados',
   reviewed: 'Revisado',
   changes: 'Desactualizado',
+  unknown: 'Por verificar',
 }
 
 function getReviewerSummary(label: string, state: ReviewerState) {
@@ -21,6 +22,7 @@ function getReviewerSummary(label: string, state: ReviewerState) {
     waiting: 'Pediste cambios',
     reviewed: 'Ya revisaste',
     changes: 'Tu revisión quedó desactualizada',
+    unknown: 'Tu revisión está por verificar',
   }
   return personalLabels[state]
 }
@@ -41,7 +43,7 @@ export default function ReviewerPopover({ pr, session }: { pr: PullRequest; sess
   const signals = people.map((person) => ({ ...person, state: getReviewerState(pr, person.displayName, person.uuid) }))
   const activeSignals = signals.filter((person): person is typeof person & { state: ReviewerState } => person.state !== null)
   const summary = activeSignals.length === 0
-    ? 'Sin actividad de QA'
+    ? pr.activityComplete === false ? 'Actividad de QA por verificar' : 'Sin actividad de QA'
     : activeSignals.length === 1
       ? getReviewerSummary(activeSignals[0].label, activeSignals[0].state)
       : `${activeSignals.length} revisores con actividad`
@@ -59,7 +61,7 @@ export default function ReviewerPopover({ pr, session }: { pr: PullRequest; sess
           {signals.map((person) => <div className="reviewer-person" key={person.displayName}>
             <Avatar name={person.displayName} state={person.state} size="medium" />
             <span><strong>{person.label}</strong><small>{person.displayName}</small></span>
-            <span className={`reviewer-state ${person.state ? `state-${person.state}` : ''}`}>{person.state ? reviewerStateNames[person.state] : 'Sin actividad'}</span>
+            <span className={`reviewer-state ${person.state ? `state-${person.state}` : ''}`}>{person.state ? reviewerStateNames[person.state] : pr.activityComplete === false ? 'No disponible' : 'Sin actividad'}</span>
           </div>)}
         </m.div>}
       </AnimatePresence>

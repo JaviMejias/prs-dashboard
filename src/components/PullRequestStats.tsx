@@ -6,7 +6,7 @@ import type { PullRequest, Session } from '../types'
 
 export default function PullRequestStats({ pr, session }: { pr: PullRequest; session: Session }) {
   const query = useQuery({
-    queryKey: ['stats', pr.id, pr.updated_on],
+    queryKey: ['stats', session.uuid || session.email, pr.repo.workspace, pr.repo.repo, pr.id, pr.updated_on],
     queryFn: () => getStats(pr, session),
   })
   const compactCreatedDate = new Date(pr.created_on).toLocaleDateString('es-CL', {

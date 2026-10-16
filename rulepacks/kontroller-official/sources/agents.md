@@ -2,8 +2,8 @@
 
 ## Kontroller project instructions
 
-- When working anywhere inside `/home/javier/kontroller_test`, read `/home/javier/kontroller_test_qa.md` completely before reviewing or changing code and follow it as additional project instructions.
-- The external instruction file is intentionally stored outside the Git repository so it remains available across branch changes and QA checkouts.
+- These instructions and the associated QA, review, and compatibility rules are included in the exported configuration. They do not require files from a particular computer or a previous chat.
+- Read the repository's own instructions and verify the declared runtime before every review. Report conflicts with the configured production versions rather than assuming a newer runtime.
 
 ## Review behavior
 
@@ -16,7 +16,7 @@
 - Avoid cosmetic comments that do not provide meaningful value.
 - If findings exist, return all comments in one complete Spanish text, ready to share.
 - Each finding should identify the file, relevant line, problem, impact, and recommended correction.
-- If there are no relevant findings, respond only: "El PR está bien y aprobado."
+- Always include the review evidence and limitations defined in the review contract. If no actionable findings remain, report no findings within the verified scope; never imply an unconditional approval when compatibility or required checks remain unverified.
 
 ## Project compatibility
 

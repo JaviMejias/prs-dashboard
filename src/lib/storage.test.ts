@@ -13,7 +13,7 @@ describe('repository rule library migration', () => {
   it('replaces the broken legacy reference only for kontroller_test', () => {
     expect(migrateKontrollerRepository({ workspace: 'kontroller_test', repo: 'kontroller_test', rulepackRefs: ['kontroller-rails-legacy@1.0.0'] })).toMatchObject({
       technologies: kontrollerTestTechnologies,
-      rulepackRefs: ['kontroller-official@1.0.0'],
+      rulepackRefs: ['kontroller-official@1.1.0'],
     })
     expect(migrateKontrollerRepository({ workspace: 'other', repo: 'repo', rulepackRefs: ['kontroller-rails-legacy@1.0.0'] })).toEqual({ workspace: 'other', repo: 'repo', rulepackRefs: ['kontroller-rails-legacy@1.0.0'] })
   })

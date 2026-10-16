@@ -57,7 +57,7 @@ function EmptyQueue({ repos, filterLifecycle, filterReview, hasLoadError, onRese
     return <div className="empty-state" role="status"><span className="empty-icon"><GitPullRequest size={24} /></span><span className="empty-kicker">Sin fuentes conectadas</span><h3>Conecta tu primer repositorio</h3><p>Agrega un repositorio de Bitbucket para empezar a construir tu cola.</p><button type="button" className="button button-primary" onClick={onConfigure}><GitBranch size={17} /> Preparar repositorios</button></div>
   }
   if (hasLoadError) {
-    return <div className="empty-state empty-error" role="alert"><span className="empty-icon"><CircleAlert size={24} /></span><span className="empty-kicker">Sin respuesta de Bitbucket</span><h3>No pudimos completar la cola</h3><p>Bitbucket no devolvió información disponible. Tus filtros y preferencias siguen intactos.</p><button type="button" className="button button-secondary" onClick={onRetry}><RefreshCw size={16} /> Reintentar conexión</button></div>
+    return <div className="empty-state empty-error" role="alert"><span className="empty-icon"><CircleAlert size={24} /></span><span className="empty-kicker">Información incompleta</span><h3>No pudimos completar la cola</h3><p>Faltan datos de Bitbucket para confirmar si hay PR pendientes con estos filtros.</p><button type="button" className="button button-secondary" onClick={onRetry}><RefreshCw size={16} /> Reintentar actualización</button></div>
   }
   if (filterLifecycle === 'OPEN' && filterReview === 'ATTENTION') {
     return <div className="empty-state empty-success" role="status"><EmptySignal /><span className="empty-kicker">Escaneo completado</span><h3>Tu cola está al día</h3><p>No hay pull requests abiertos que necesiten tu revisión.</p></div>
@@ -65,8 +65,9 @@ function EmptyQueue({ repos, filterLifecycle, filterReview, hasLoadError, onRese
   return <div className="empty-state" role="status"><span className="empty-icon"><SlidersHorizontal size={24} /></span><span className="empty-kicker">Sin coincidencias</span><h3>No hay resultados con estos filtros</h3><p>La información sigue disponible; prueba con otra combinación.</p><button type="button" className="button button-secondary" onClick={onReset}>Restablecer filtros</button></div>
 }
 
-function QueueStatus({ errorCount, allRepositoriesFailed, allPrs, onRetry, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress }: {
+function QueueStatus({ errorCount, warnings, allRepositoriesFailed, allPrs, onRetry, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress }: {
   errorCount: number
+  warnings: string[]
   allRepositoriesFailed: boolean
   allPrs: PullRequest[]
   onRetry: () => void
@@ -78,7 +79,7 @@ function QueueStatus({ errorCount, allRepositoriesFailed, allPrs, onRetry, initi
   loadingProgress: number
 }) {
   return <>
-    {errorCount > 0 && allPrs.length > 0 && <div className="error-banner" role="alert"><span><CircleAlert size={18} /></span><div><strong>{allRepositoriesFailed ? 'No pudimos conectar con Bitbucket' : errorCount === 1 ? '1 repositorio no pudo actualizarse' : `${errorCount} repositorios no pudieron actualizarse`}</strong><p>Conservamos la información disponible. Revisa tus credenciales o intenta nuevamente.</p></div><button type="button" className="button button-secondary" onClick={onRetry}>Reintentar</button></div>}
+    {errorCount > 0 && <div className="error-banner" role="alert"><span><CircleAlert size={18} /></span><div><strong>{allRepositoriesFailed ? 'No pudimos actualizar desde Bitbucket' : 'La cola tiene datos parciales'}</strong><p>{allPrs.length ? 'Conservamos los PR disponibles. No podemos confirmar que la cola esté al día.' : 'No podemos confirmar si hay PR pendientes.'}</p>{warnings.length > 0 && <ul>{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}</div><button type="button" className="button button-secondary" onClick={onRetry}>Reintentar</button></div>}
     {initialLoading && <div className={`loading-status${loadingIsSlow ? ' is-slow' : ''}${!isOnline ? ' is-offline' : ''}`} role="status" aria-live="polite"><span className="loading-status-icon">{isOnline ? <RefreshCw className="spin" size={18} /> : <WifiOff size={18} />}</span><span><strong>{!isOnline ? 'Sin conexión a internet' : loadingIsSlow ? 'Bitbucket está tardando un poco' : 'Preparando tu cola'}</strong><small>{!isOnline ? 'La sincronización continuará cuando recuperes la conexión.' : loadingIsSlow ? `${fetchedRepositories} de ${repositoryCount} repositorios listos · seguimos intentando.` : `${fetchedRepositories} de ${repositoryCount} repositorios sincronizados`}</small></span><span className="loading-progress" role="progressbar" aria-label="Repositorios sincronizados" aria-valuemin={0} aria-valuemax={repositoryCount} aria-valuenow={fetchedRepositories}><i style={{ width: `${loadingProgress}%` }} /></span></div>}
   </>
 }
@@ -140,6 +141,7 @@ type QueueViewProps = {
   highlightedPrKey: string | null
   visibleLimit: number
   errorCount: number
+  warnings: string[]
   allRepositoriesFailed: boolean
   fetching: boolean
   initialLoading: boolean
@@ -172,6 +174,7 @@ export default function QueueView({
   highlightedPrKey,
   visibleLimit,
   errorCount,
+  warnings,
   allRepositoriesFailed,
   fetching,
   initialLoading,
@@ -181,12 +184,12 @@ export default function QueueView({
   repositoryCount,
   loadingProgress,
 }: QueueViewProps) {
-  const hasLoadError = errorCount > 0 && allPrs.length === 0
+  const hasLoadError = errorCount > 0
 
   return <>
     <FilterToolbar filterLifecycle={filterLifecycle} setFilterLifecycle={setFilterLifecycle} filterRepo={filterRepo} setFilterRepo={setFilterRepo} filterReview={filterReview} setFilterReview={setFilterReview} statusCounts={statusCounts} repos={repos} allPrs={allPrs} resultCount={sortedPrs.length} onReset={onReset} />
 
-    <QueueStatus errorCount={errorCount} allRepositoriesFailed={allRepositoriesFailed} allPrs={allPrs} onRetry={onRetry} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} />
+    <QueueStatus errorCount={errorCount} warnings={warnings} allRepositoriesFailed={allRepositoriesFailed} allPrs={allPrs} onRetry={onRetry} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} />
     <QueueResults visiblePrs={visiblePrs} sortedPrs={sortedPrs} repos={repos} session={session} highlightedPrKey={highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenPreparation={onOpenPreparation} initialLoading={initialLoading} allPrs={allPrs} filterLifecycle={filterLifecycle} filterReview={filterReview} hasLoadError={hasLoadError} onReset={onReset} onRetry={onRetry} visibleLimit={visibleLimit} onLoadMore={onLoadMore} fetching={fetching} isOnline={isOnline} />
   </>
 }

@@ -170,6 +170,7 @@ export function useDashboardNotifications({
     const detectedAt = Date.now()
 
     allPrs.forEach((pr) => {
+      if (pr.activityComplete === false) return
       const pullRequestRepository = repositoryKey(pr.repo)
       if (!successfulRepositories.has(pullRequestRepository)) return
       const key = pullRequestKey(pr)

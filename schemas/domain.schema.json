@@ -133,9 +133,29 @@
       "additionalProperties": false,
       "required": ["content"],
       "properties": {
+        "id": { "type": "integer" }, "parentId": { "type": "integer" },
+        "authorUuid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" },
+        "deleted": { "type": "boolean" }, "resolved": { "type": "boolean" },
+        "side": { "enum": ["source", "destination"] }, "codeUrl": { "type": "string", "format": "uri" },
+        "commitReference": { "type": "object", "additionalProperties": false, "required": ["hash", "confidence", "activityDate"], "properties": { "hash": { "type": "string" }, "confidence": { "const": "inferred" }, "activityDate": { "type": "string", "format": "date-time" } } },
         "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" },
         "content": { "type": "string" }, "path": { "type": "string" },
         "line": { "type": "integer", "minimum": 1 }, "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "reviewContextThread": {
+      "type": "object", "additionalProperties": false, "required": ["incomplete", "comments"],
+      "properties": { "rootId": { "type": "integer" }, "incomplete": { "type": "boolean" }, "comments": { "type": "array", "items": { "$ref": "#/$defs/reviewContextComment" } } }
+    },
+    "reviewDecision": {
+      "type": "object", "additionalProperties": false, "required": ["status", "reason", "confidence"],
+      "properties": {
+        "status": { "enum": ["unreviewed", "changes", "waiting", "current", "merged", "declined"] },
+        "confidence": { "enum": ["confirmed", "inferred", "unknown"] },
+        "reason": { "enum": ["new_pr", "no_review_recorded", "reviewer_not_identified", "new_commit_after_review", "same_commit_after_review", "developer_activity_after_review", "reviewer_activity_after_review", "updated_after_review", "waiting_for_developer", "merged", "declined", "activity_incomplete"] },
+        "reviewDate": { "type": "string", "format": "date-time" }, "reviewedCommit": { "type": "string" }, "latestCommit": { "type": "string" },
+        "latestDeveloperActivity": { "enum": ["commit", "comment", "commit_and_comment"] }
       }
     },
     "reviewContextActivity": {
@@ -163,6 +183,7 @@
       "properties": {
         "isNew": { "type": "boolean" }, "requiresReview": { "type": "boolean" }, "isRevisit": { "type": "boolean" },
         "status": { "type": "string", "enum": ["unreviewed", "changes", "waiting", "current", "merged", "declined"] },
+        "decision": { "$ref": "#/$defs/reviewDecision" },
         "lastRelevantActivity": { "$ref": "#/$defs/reviewContextActivity" }
       }
     },
@@ -172,6 +193,10 @@
       "required": ["schemaVersion", "repository", "pullRequest", "reviewState", "commits", "changedFiles", "diffstat", "comments", "activity", "unavailable"],
       "properties": {
         "schemaVersion": { "type": "integer", "const": 1 },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "reviewContract": { "type": "string" },
+        "reviewer": { "type": "object", "additionalProperties": false, "properties": { "name": { "type": "string" }, "uuid": { "type": "string" } } },
+        "localReview": { "type": "object", "additionalProperties": false, "required": ["sourceRemote", "targetRemote", "sourceRepository", "targetRepository", "syncConfirmed"], "properties": { "sourceRemote": { "type": ["string", "null"] }, "targetRemote": { "type": ["string", "null"] }, "sourceRepository": { "type": "string" }, "targetRepository": { "type": "string" }, "syncConfirmed": { "type": "boolean" } } },
         "repository": {
           "type": "object", "additionalProperties": false, "required": ["workspace", "repository"],
           "properties": { "workspace": { "type": "string" }, "repository": { "type": "string" }, "friendlyName": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } } }
@@ -183,6 +208,7 @@
             "state": { "type": "string", "enum": ["OPEN", "DRAFT", "QUEUED", "MERGED", "DECLINED"] }, "draft": { "type": "boolean" },
             "author": { "type": "object", "additionalProperties": false, "properties": { "name": { "type": "string" }, "uuid": { "type": "string" }, "url": { "type": "string", "format": "uri" } } },
             "sourceBranch": { "type": "string" }, "targetBranch": { "type": "string" },
+            "sourceCommit": { "type": "string" }, "targetCommit": { "type": "string" },
             "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" },
             "url": { "type": "string", "format": "uri" }
           }
@@ -192,6 +218,7 @@
         "changedFiles": { "type": "array", "items": { "$ref": "#/$defs/reviewContextFile" } },
         "diffstat": { "$ref": "#/$defs/reviewContextDiffstat" },
         "comments": { "type": "array", "items": { "$ref": "#/$defs/reviewContextComment" } },
+        "conversations": { "type": "array", "items": { "$ref": "#/$defs/reviewContextThread" } },
         "activity": { "type": "array", "items": { "$ref": "#/$defs/reviewContextActivity" } },
         "unavailable": { "type": "array", "items": { "type": "string" } },
         "rulepacks": { "type": "array", "items": { "$ref": "#/$defs/appliedRulepack" } },
@@ -217,6 +244,7 @@
       "additionalProperties": false,
       "required": ["id", "name", "version", "description", "reviewRules", "reviewRulesContent", "referenceContents", "source"],
       "properties": {
+        "category": { "enum": ["general", "technology", "framework", "project"] }, "technology": { "type": "string" },
         "id": { "type": "string" }, "name": { "type": "string" }, "version": { "type": "string" },
         "description": { "type": "string" }, "reviewRules": { "type": "string" }, "testing": { "type": "string" },
         "references": { "type": "array", "items": { "type": "string" } }, "source": { "type": "string", "enum": ["git", "local"] },

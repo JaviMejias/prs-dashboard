@@ -61,10 +61,8 @@ Run focused tests or static checks when available and proportionate. Do not clai
 - Tests are not mandatory in a Kontroller pull request. Do not request that the developer add tests and do not reject or comment on a PR solely because it contains no new specs.
 - When the developer includes specs, review them as part of the diff. Check that they exercise the intended behavior, meaningful failure cases, and regressions without brittle or misleading assertions.
 - Run the relevant RSpec examples and, when practical for the repository, the broader RSpec suite. Attribute failures to the PR before reporting them; distinguish unrelated baseline or environment failures.
-- Javier's uncommitted local changes are disposable during a Kontroller PR review and may be discarded to obtain a clean checkout for RSpec without requesting an additional confirmation each time.
-- Before discarding anything, resolve and verify the exact repository root, inspect `git status` and the local diff, identify the base and head commits under review, and confirm the target paths are uncommitted local state rather than committed developer changes. Destructive targets must remain inside that repository.
-- Discard tracked local modifications and staging state as needed. Remove untracked files only when they interfere with the clean review or test run, after listing and verifying their exact paths. Preserve ignored environment files, credentials, local databases, dependency caches, and files outside the repository; never use a clean operation that includes ignored files.
-- Never discard, rewrite, or omit the developer's committed PR changes. After removing material local state, state briefly what was removed and that it is not recoverable unless Git or another backup already contains it.
+- Reviews are read-only. Inspect the repository root, status, diff, base, and head before running checks. Do not discard local work, alter staging, switch branches, reset files, clean untracked files, or change remotes to prepare a test run.
+- If the checkout or environment prevents a reliable check, report that limitation. Any separate checkout preparation must be handled outside the read-only review with the user's authorization.
 
 ## Mandatory two-pass finalization
 
@@ -88,11 +86,11 @@ There is no maximum number of valid comments. If the PR contains twenty independ
 
 ## Review output
 
-If no actionable findings remain, respond exactly:
+Always provide a Spanish review report with the exact base/head SHA, merge base, full diff scope and totals, detected runtime versions, checks performed and their outcomes, and any incomplete verification. Follow the review contract's evidence requirements.
 
-El PR está aprobado.
+If no actionable findings remain, state "Sin hallazgos en el alcance verificado" together with that evidence and its limitations. If an essential compatibility or behavior check remains unverified, state "Revisión incompleta" rather than approving the PR.
 
-If findings exist, return only copy-ready Spanish comments in plain text. Do not use Markdown headings, bullets, tables, severity labels, summaries, compliments, or general commentary. Separate comments with a blank line. Each comment must be understandable when pasted directly onto the relevant Bitbucket line: state the concrete problem, its impact, and the expected correction without dictating an unnecessary implementation.
+If findings exist, provide a separate section containing copy-ready Spanish comments in plain text. Separate comments with a blank line. Each comment must identify the file and line, concrete problem, impact, and expected correction without dictating an unnecessary implementation. Keep the review evidence separate so it is not accidentally pasted into a developer comment.
 
 When the finding is caused by interaction with unchanged code, explicitly explain that connection so the developer understands why it belongs to this PR. State whether the developer can resolve it in the PR or must coordinate the decision with support or the relevant owner. Do not accept `yo no modifiqué ese archivo` as a reason to ignore a verified dependency, and do not phrase the comment as blame for pre-existing code.
 

@@ -62,7 +62,7 @@ describe('classifyPr', () => {
     expect(classifyPr(pullRequest, myUuid)).toBe('changes')
   })
 
-  it('does not mark a PR as changed when the latest activity is my comment', () => {
+  it('keeps a later PR timestamp pending when the reviewed commit is unavailable', () => {
     const pullRequest = buildPullRequest({
       updated_on: '2026-09-08T13:02:00Z',
       activity: [
@@ -71,7 +71,7 @@ describe('classifyPr', () => {
       ],
     })
 
-    expect(classifyPr(pullRequest, myUuid)).toBe('current')
+    expect(getReviewDecision(pullRequest, myUuid)).toMatchObject({ status: 'changes', confidence: 'unknown', reason: 'activity_incomplete' })
   })
 
   it('marks a PR as changed when a developer update follows my comment', () => {
@@ -87,7 +87,7 @@ describe('classifyPr', () => {
     expect(classifyPr(pullRequest, myUuid)).toBe('changes')
   })
 
-  it('does not treat a later QA comment as a developer code change', () => {
+  it('does not let another QA comment confirm that I reviewed the current code', () => {
     const pullRequest = buildPullRequest({
       updated_on: '2026-09-08T12:02:00Z',
       activity: [
@@ -96,10 +96,10 @@ describe('classifyPr', () => {
       ],
     })
 
-    expect(classifyPr(pullRequest, myUuid)).toBe('current')
+    expect(getReviewDecision(pullRequest, myUuid)).toMatchObject({ status: 'changes', confidence: 'unknown', reason: 'updated_after_review' })
   })
 
-  it('does not treat an update without an author as a developer code change', () => {
+  it('keeps an update without commit evidence pending without claiming a code change', () => {
     const pullRequest = buildPullRequest({
       updated_on: '2026-09-08T13:02:00Z',
       activity: [
@@ -109,7 +109,7 @@ describe('classifyPr', () => {
       ],
     })
 
-    expect(classifyPr(pullRequest, myUuid)).toBe('current')
+    expect(getReviewDecision(pullRequest, myUuid)).toMatchObject({ status: 'changes', confidence: 'unknown', reason: 'activity_incomplete' })
   })
 
   it('matches own activity by display name when the update UUID is unavailable', () => {
@@ -178,12 +178,12 @@ describe('getReviewerState', () => {
     expect(getReviewerState(pullRequest, 'Iván Reyes')).toBe('approved')
   })
 
-  it('shows when activity happened after a reviewer participated', () => {
+  it('shows uncertainty when only the PR timestamp follows a review', () => {
     const pullRequest = buildPullRequest({
       participants: [{ user: { display_name: 'Diego Gustavo Cuevas Montes' }, approved: true, participated_on: '2026-09-08T11:00:00Z' }],
     })
 
-    expect(getReviewerState(pullRequest, 'Diego Gustavo Cuevas Montes')).toBe('changes')
+    expect(getReviewerState(pullRequest, 'Diego Gustavo Cuevas Montes')).toBe('unknown')
   })
 
   it('matches the reviewer by UUID when the display name differs', () => {

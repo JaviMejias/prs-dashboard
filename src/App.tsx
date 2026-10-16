@@ -69,6 +69,7 @@ type DashboardLayoutProps = {
   isOnline: boolean
   allRepositoriesFailed: boolean
   errorCount: number
+  warnings: string[]
   latestSync: number
   onRefresh: () => void
   notificationCenter: ReturnType<typeof useDashboardNotifications>
@@ -106,9 +107,10 @@ type DashboardLayoutProps = {
 }
 
 function syncLabelFor({ isOnline, fetching, allRepositoriesFailed, errorCount }: Pick<DashboardLayoutProps, 'isOnline' | 'fetching' | 'allRepositoriesFailed' | 'errorCount'>) {
-  if (!isOnline || allRepositoriesFailed) return isOnline ? 'Sin conexión' : 'Sin conexión'
+  if (!isOnline) return 'Sin conexión'
+  if (allRepositoriesFailed) return 'Requiere atención'
   if (fetching) return 'Sincronizando'
-  if (errorCount > 0) return 'Conexión parcial'
+  if (errorCount > 0) return 'Datos parciales'
   return 'Conectado'
 }
 
@@ -133,9 +135,9 @@ function DashboardHeader({ session, activeView, onViewChange, reviewCount, fetch
 }
 
 function DashboardMain({ layout }: { layout: DashboardLayoutProps }) {
-  const { activeView, onViewChange, reviewCount, repos, allPrs, visiblePrs, sortedPrs, statusCounts, session, filterRepo, filterLifecycle, filterReview, setFilterRepo, setFilterLifecycle, setFilterReview, gitWorkflowSettings, onGitWorkflowSettingsChange, onResetFilters, onRefresh, onLoadMore, highlightedPrKey, visibleLimit, errorCount, allRepositoriesFailed, fetching, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress } = layout
+  const { activeView, onViewChange, reviewCount, repos, allPrs, visiblePrs, sortedPrs, statusCounts, session, filterRepo, filterLifecycle, filterReview, setFilterRepo, setFilterLifecycle, setFilterReview, gitWorkflowSettings, onGitWorkflowSettingsChange, onResetFilters, onRefresh, onLoadMore, highlightedPrKey, visibleLimit, errorCount, warnings, allRepositoriesFailed, fetching, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress } = layout
   const reduceMotion = useReducedMotion()
-  return <main id="main-content" className="content"><Suspense fallback={<ViewLoading label={activeView === 'summary' ? 'Cargando resumen…' : 'Cargando preparación…'} />}><AnimatePresence mode="wait" initial={false}><m.div key={activeView} className={`dashboard-view dashboard-view-${activeView}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -6 }} transition={{ duration: reduceMotion ? 0 : .2, ease: 'easeOut' }}>{activeView === 'queue' ? <><section className="queue-intro" aria-labelledby="queue-title"><div><span className="section-kicker">Bandeja priorizada</span><h1 id="queue-title">Cola de revisión</h1><p>Prioridad y contexto para decidir sin volver a recorrer Bitbucket.</p></div><div className="attention-summary" aria-label={`${reviewCount} ${reviewCount === 1 ? 'requiere' : 'requieren'} tu revisión`}><span className="attention-icon"><ScanEye size={20} /></span><strong>{reviewCount}</strong><span>{reviewCount === 1 ? 'requiere' : 'requieren'}<br />tu revisión</span></div></section><QueueView repos={repos} allPrs={allPrs} visiblePrs={visiblePrs} sortedPrs={sortedPrs} statusCounts={statusCounts} session={session} filterRepo={filterRepo} filterLifecycle={filterLifecycle} filterReview={filterReview} setFilterRepo={setFilterRepo} setFilterLifecycle={setFilterLifecycle} setFilterReview={setFilterReview} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenPreparation={() => onViewChange('authors')} onReset={onResetFilters} onRetry={onRefresh} onLoadMore={onLoadMore} highlightedPrKey={highlightedPrKey} visibleLimit={visibleLimit} errorCount={errorCount} allRepositoriesFailed={allRepositoriesFailed} fetching={fetching} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} /></> : activeView === 'summary' ? <SummaryView prs={allPrs} repos={repos} session={session} /> : <AuthorsView prs={allPrs} repos={repos} setRepos={layout.setRepos} settings={gitWorkflowSettings} onChange={onGitWorkflowSettingsChange} />}</m.div></AnimatePresence></Suspense></main>
+  return <main id="main-content" className="content"><Suspense fallback={<ViewLoading label={activeView === 'summary' ? 'Cargando resumen…' : 'Cargando preparación…'} />}><AnimatePresence mode="wait" initial={false}><m.div key={activeView} className={`dashboard-view dashboard-view-${activeView}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -6 }} transition={{ duration: reduceMotion ? 0 : .2, ease: 'easeOut' }}>{activeView === 'queue' ? <><section className="queue-intro" aria-labelledby="queue-title"><div><span className="section-kicker">Bandeja priorizada</span><h1 id="queue-title">Cola de revisión</h1><p>Prioridad y contexto para decidir sin volver a recorrer Bitbucket.</p></div><div className="attention-summary" aria-label={`${reviewCount} ${reviewCount === 1 ? 'requiere' : 'requieren'} tu revisión`}><span className="attention-icon"><ScanEye size={20} /></span><strong>{reviewCount}</strong><span>{reviewCount === 1 ? 'requiere' : 'requieren'}<br />tu revisión</span></div></section><QueueView repos={repos} allPrs={allPrs} visiblePrs={visiblePrs} sortedPrs={sortedPrs} statusCounts={statusCounts} session={session} filterRepo={filterRepo} filterLifecycle={filterLifecycle} filterReview={filterReview} setFilterRepo={setFilterRepo} setFilterLifecycle={setFilterLifecycle} setFilterReview={setFilterReview} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenPreparation={() => onViewChange('authors')} onReset={onResetFilters} onRetry={onRefresh} onLoadMore={onLoadMore} highlightedPrKey={highlightedPrKey} visibleLimit={visibleLimit} errorCount={errorCount} warnings={warnings} allRepositoriesFailed={allRepositoriesFailed} fetching={fetching} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} /></> : activeView === 'summary' ? <SummaryView prs={allPrs} repos={repos} session={session} /> : <AuthorsView prs={allPrs} repos={repos} setRepos={layout.setRepos} settings={gitWorkflowSettings} onChange={onGitWorkflowSettingsChange} />}</m.div></AnimatePresence></Suspense></main>
 }
 
 function ViewLoading({ label }: { label: string }) {
@@ -205,6 +207,8 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
     initialLoading,
     loadingProgress,
     errors,
+    issueCount,
+    warnings,
     initialSyncComplete,
     syncVersion,
     successfulRepositoryKeys,
@@ -329,7 +333,8 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
     fetching={fetching}
     isOnline={isOnline}
     allRepositoriesFailed={allRepositoriesFailed}
-    errorCount={errors.length}
+    errorCount={issueCount}
+    warnings={warnings}
     latestSync={latestSync}
     onRefresh={refresh}
     notificationCenter={notificationCenter}

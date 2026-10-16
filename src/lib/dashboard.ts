@@ -19,6 +19,7 @@ export const reviewerLabels: Record<ReviewerState, string> = {
   waiting: 'pidió cambios',
   reviewed: 'revisó',
   changes: 'revisó antes de los últimos cambios',
+  unknown: 'tiene actividad por verificar',
 }
 
 export const lifecycleLabels: Record<LifecycleStatus, string> = {
@@ -104,8 +105,9 @@ export function requiresReview(pr: PullRequest, uuid?: string, displayName?: str
   return status === 'unreviewed' || status === 'changes'
 }
 
-export function getReviewLabel(pr: PullRequest, status: PrStatus) {
+export function getReviewLabel(pr: PullRequest, status: PrStatus, reviewDecision?: ReviewDecision) {
   if (isIgnoredPullRequest(pr)) return 'No revisar'
+  if (status === 'changes' && (reviewDecision?.confidence === 'unknown' || pr.activityComplete === false)) return 'Verificar actividad'
   if (status === 'unreviewed' && isFreshPullRequest(pr)) return 'Nuevo PR'
   return reviewLabels[status]
 }
@@ -151,12 +153,16 @@ export function comparePullRequests(first: PullRequest, second: PullRequest, uui
   return new Date(second.updated_on).getTime() - new Date(first.updated_on).getTime()
 }
 
-export function getHandoffMessage(pr: PullRequest, status: PrStatus) {
+export function getHandoffMessage(pr: PullRequest, status: PrStatus, reviewDecision?: ReviewDecision) {
   if (isIgnoredPullRequest(pr)) {
     return {
       label: 'Fuera de tu cola',
       message: 'Permanece disponible en la vista de todos los PR.',
     }
+  }
+
+  if (status === 'changes' && (reviewDecision?.confidence === 'unknown' || pr.activityComplete === false)) {
+    return { label: 'Actividad por verificar', message: 'Faltan datos para confirmar si revisaste el código actual. El PR sigue en tu cola.' }
   }
 
   if (status === 'unreviewed' && isFreshPullRequest(pr)) {

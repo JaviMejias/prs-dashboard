@@ -23,7 +23,7 @@ rulepacks/<name>/
 
 Metadata identifies nombre, versión, categoría, tecnología y compatibilidad.
 Markdown carries human-readable rules. La composición solo resuelve referencias
-exactas, elimina duplicados por referencia y conserva el orden configurado.
+explícitas, elimina duplicados por referencia resuelta y conserva el orden configurado.
 No hay DSL, condiciones ejecutables, parser, semver ni motor de evaluación.
 
 The metadata currently used by the app is:
@@ -32,7 +32,7 @@ The metadata currently used by the app is:
 {
   "id": "kontroller-official",
   "name": "Reglas oficiales de revisión de Kontroller",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "...",
   "reviewRules": "sources/agents.md",
   "references": ["sources/kontroller-test-qa.md", "sources/..."],
@@ -43,23 +43,23 @@ The metadata currently used by the app is:
 La aplicación valida metadata, contenido y referencias. Un repositorio puede
 usar `ruleRefs` para seleccionar reglas individuales y `rulepackRefs` para
 seleccionar el bundle oficial completo. No existe resolución `latest` ni
-actualización automática.
+actualización semántica automática. Las referencias oficiales conocidas de 1.0 se migran explícitamente a 1.1; la salida declara esa versión actual. El contrato y la composición se detallan en [Preparación portátil](review-preparation.md).
 
 Example local mapping:
 
 ```text
 kontroller_test/kontroller_test
-→ kontroller-review-guidelines@1.0.0
-→ kontroller-ruby-rails-compatibility@1.0.0
+→ kontroller-review-guidelines@1.1.0
+→ kontroller-ruby-rails-compatibility@1.1.0
 ```
 
-The current bundled catalog contains `kontroller-official@1.0.0`, composed
+The current bundled catalog contains `kontroller-official@1.1.0`, composed
 from the seven official source documents supplied for Kontroller. Each source
 is preserved in `rulepacks/kontroller-official/sources/` and exposed as one
 reusable rule. These local identifiers organize sources; they are not official
-`KPR-*` identifiers. A
-Un repositorio sin referencias sigue siendo válido y no tiene reglas
-aplicables. Las tecnologías/versiones se guardan aparte como contexto
+`KPR-*` identifiers.
+Un repositorio sin referencias sigue siendo válido y recibe las reglas
+generales. Las tecnologías/versiones se guardan aparte como contexto
 explícito: seleccionar Ruby 2.4.3 no activa automáticamente Rails 5.1.
 
 La UI de `Preparar` es el punto único para ver la biblioteca, seleccionar
