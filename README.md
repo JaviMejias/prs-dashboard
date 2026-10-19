@@ -216,13 +216,28 @@ No escriben archivos en el repositorio: revisa el archivo descargado e intégral
 sin sobrescribir instrucciones existentes. Una preferencia personal no tiene
 prioridad sobre una convención verificada del proyecto.
 
-La guía de cada PR es compacta por defecto: referencia la versión del contexto
-inicial y conserva descripción, comparación local y conversaciones. Cada
-comentario se incluye una sola vez, con enlaces al comentario padre y a tu
-observación cuando corresponde. No se descartan respuestas antiguas como si
-estuvieran resueltas. Si el agente no tiene la ficha requerida, debe pedirla.
-En Ver contexto puedes activar Incluir contexto completo del proyecto para una
-guía autocontenida. El JSON y el Markdown completos siguen disponibles.
+La guía de cada PR es compacta por defecto. La referencia `ctx-…` identifica la
+ficha, no recupera memoria ni obliga a detener una revisión si el chat o
+AGENTS.md ya contienen instrucciones equivalentes. Si falta información
+indispensable o hay un conflicto real de reglas/versiones, el agente debe pedirla.
+Las descripciones compuestas solo por espacios o caracteres Unicode invisibles
+se muestran como «Sin descripción en Bitbucket» sin alterar descripciones útiles.
+
+Conversaciones permite elegir Ronda reciente (aproximada) o Historial completo.
+La primera agrupa observaciones propias creadas dentro de los cinco minutos
+anteriores a la última y actividad posterior, conservando completos los hilos
+relacionados, incluso si su comentario original es antiguo. Los comentarios sin
+fecha y las respuestas sin padre disponible se conservan por precaución. Si no
+hay identidad, observaciones propias o fechas fiables, se incluye todo el historial.
+La edición de un comentario no inicia una ronda nueva. Se indica cuántos mensajes
+quedan fuera: no se dan por leídos ni resueltos. La atribución de respuestas del
+autor se limita a los datos recibidos, no demuestra ausencia de respuestas remotas.
+
+Cada comentario aparece una sola vez en la guía. Vista previa de la guía comparte
+la selección con la copia directa y permite actualizar los datos. Incluir contexto
+completo del proyecto añade ficha y reglas sin cambiar las conversaciones elegidas.
+El JSON y Markdown técnicos conservan todo el historial recibido. La selección
+de conversaciones es transitoria por registro, como la nota adicional.
 
 El recordatorio se guarda por cuenta y navegador, separado del respaldo portable;
 si falla el almacenamiento, se conserva en memoria durante esa pantalla y se
@@ -248,7 +263,7 @@ ejecuta Codex, Git ni comandos externos.
 
 En Revisión local, `Copiar para Codex` descarga bajo demanda el contexto de ese
 PR: descripción, cambios y conversaciones, con las respuestas directas y
-anidadas a tus observaciones. `Ver contexto` permite previsualizar la misma
+anidadas a tus observaciones. `Vista previa de la guía` permite previsualizar la misma
 guía y actualizar sus datos. Si fallan los comentarios, la copia combinada se
 bloquea para no omitir silenciosamente las respuestas del desarrollador.
 

@@ -150,7 +150,7 @@
       "required": ["content"],
       "properties": {
         "id": { "type": "integer", "minimum": 0 }, "parentId": { "type": "integer", "minimum": 0 },
-        "authorUuid": { "type": "string" }, "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" },
+        "authorUuid": { "type": "string" }, "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" }, "createdAt": { "type": "string", "format": "date-time" },
         "content": { "type": "string" }, "path": { "type": "string" },
         "line": { "type": "integer", "minimum": 1 }, "url": { "type": "string", "format": "uri" }
       }
@@ -195,6 +195,7 @@
       "required": ["schemaVersion", "repository", "pullRequest", "reviewState", "commits", "changedFiles", "diffstat", "comments", "activity", "unavailable"],
       "properties": {
         "schemaVersion": { "type": "integer", "const": 2 },
+        "reviewer": { "type": "object", "additionalProperties": false, "properties": { "uuid": { "type": "string" }, "name": { "type": "string" } } },
         "repository": {
           "type": "object", "additionalProperties": false, "required": ["workspace", "repository"],
           "properties": { "workspace": { "type": "string" }, "repository": { "type": "string" }, "friendlyName": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } }, "profile": { "$ref": "#/$defs/projectProfile" }, "personalPreferences": { "$ref": "#/$defs/personalReviewPreferences" } }

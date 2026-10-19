@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
-import { ChevronDown, Copy, FileJson, GitBranch, RefreshCw } from 'lucide-react'
+import { ChevronDown, Copy, FileText, GitBranch, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useLocalReviewPreparation, type CopyState } from '../hooks/useLocalReviewPreparation'
 import { displayName } from '../lib/dashboard'
 import { openProjectSession } from '../lib/projectSession'
 import { buildGitReviewInstruction, getGitRemotesCommand, type GitReviewInstruction } from '../lib/gitWorkflow'
-import ReviewContextDialog from './ReviewContextDialog'
+import ReviewConversationScope from './ReviewConversationScope'
+import type { ReviewCommentScope } from '../lib/reviewConversations'
 import type { GitWorkflowSettings, PullRequest, Session } from '../types'
+
+const ReviewContextDialog = lazy(() => import('./ReviewContextDialog'))
 
 type Props = {
   pr: PullRequest
@@ -65,8 +68,9 @@ export default function LocalReviewGuide({ pr, session, settings, onSettingsChan
   const [open, setOpen] = useState(false)
   const [contextOpen, setContextOpen] = useState(false)
   const [additionalContext, setAdditionalContext] = useState('')
+  const [commentScope, setCommentScope] = useState<ReviewCommentScope>('recent')
   const instruction = buildGitReviewInstruction(pr, session, settings)
-  const { copyState, setCopyState, unavailable, copyPreparation } = useLocalReviewPreparation(pr, session, instruction, additionalContext)
+  const { copyState, setCopyState, context, unavailable, copyPreparation } = useLocalReviewPreparation(pr, session, instruction, additionalContext, commentScope)
   const fieldId = `review-notes-${pr.repo.workspace}-${pr.repo.repo}-${pr.id}`
   const busy = copyState.status === 'loading'
 
@@ -90,6 +94,7 @@ export default function LocalReviewGuide({ pr, session, settings, onSettingsChan
         <LocalReviewRoute instruction={instruction} />
         <p className="workflow-instruction-copy">{instruction.text}</p>
         <LocalRemoteSetup pr={pr} settings={settings} onSettingsChange={onSettingsChange} onOpenSettings={onOpenSettings} instruction={instruction} />
+        <ReviewConversationScope scope={commentScope} onChange={setCommentScope} context={context} disabled={busy} />
         <div className="review-manual-context">
           <label htmlFor={fieldId}>Contexto adicional para este PR (opcional)</label>
           <textarea className="resize-none" disabled={busy} id={fieldId} rows={4} value={additionalContext} onChange={(event) => setAdditionalContext(event.target.value)} aria-describedby={`${fieldId}-help`} placeholder="Por WhatsApp, el autor indicó que… / En la revisión anterior observé…" />
@@ -97,15 +102,15 @@ export default function LocalReviewGuide({ pr, session, settings, onSettingsChan
         </div>
         <div className="instruction-actions">
           <button type="button" className="instruction-context" onClick={() => openProjectSession(pr.repo)}><Copy size={14} /> Contexto inicial / Nuevo chat</button>
-          <button type="button" className="instruction-context" onClick={() => setContextOpen(true)}><FileJson size={14} /> Ver contexto</button>
+          <button type="button" className="instruction-context" disabled={busy} onClick={() => setContextOpen(true)}><FileText size={14} /> Vista previa de la guía</button>
           <button type="button" className="instruction-copy" onClick={() => void copyPreparation()} disabled={busy} aria-busy={busy}>{busy ? <RefreshCw size={14} className="spin" /> : <Copy size={14} />}{busy ? 'Preparando…' : 'Copiar para Codex'}</button>
           <button type="button" className={`sync-check${settings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => onSettingsChange({ ...settings, syncRemotesConfirmed: !settings.syncRemotesConfirmed })} aria-pressed={settings.syncRemotesConfirmed}><span>{settings.syncRemotesConfirmed ? '✓' : ''}</span> Remotos actualizados</button>
           {!settings.syncRemotesConfirmed && <button type="button" className="sync-command" onClick={() => void copySyncCommand()}>Copiar git sync-remotes</button>}
         </div>
-        <p className="review-context-hint">La guía del PR es compacta: no repite la ficha ni las reglas generales. Comparte el contexto inicial al abrir un chat o si el agente lo pierde. En Ver contexto puedes incluir la guía completa.</p>
+        <p className="review-context-hint">La guía no repite la ficha ni las reglas generales. Comparte el contexto inicial al abrir un chat o si el agente lo pierde. En Vista previa de la guía puedes incluir el contexto completo del proyecto.</p>
         <ReviewCopyFeedback state={copyState} unavailable={unavailable} />
       </m.div>}
     </AnimatePresence>
-    <AnimatePresence>{contextOpen && <ReviewContextDialog pr={pr} session={session} instruction={instruction} additionalContext={additionalContext} onClose={() => setContextOpen(false)} />}</AnimatePresence>
+    <Suspense fallback={<p role="status">Abriendo vista previa…</p>}><AnimatePresence>{contextOpen && <ReviewContextDialog pr={pr} session={session} instruction={instruction} additionalContext={additionalContext} commentScope={commentScope} onScopeChange={setCommentScope} onClose={() => setContextOpen(false)} />}</AnimatePresence></Suspense>
   </div>
 }

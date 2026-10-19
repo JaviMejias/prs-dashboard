@@ -21,6 +21,7 @@ describe('Bitbucket review context', () => {
     expect(details.comments).toHaveLength(2)
     expect(details.comments[0]).toMatchObject({ id: 1, authorUuid: '{qa}', path: 'app/order.rb', line: 21 })
     expect(details.comments[1]).toMatchObject({ parentId: 1, content: 'Added validation', url: expect.stringContaining('#comment-2') })
+    expect(details.comments[1].createdAt).toBe('2026-10-02T00:00:00Z')
     expect(details.unavailable).toEqual([])
     expect(fetchMock).toHaveBeenCalledTimes(5)
   })

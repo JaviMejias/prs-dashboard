@@ -87,7 +87,7 @@ describe('ReviewContext', () => {
     expect(prompt).toContain('no es una comprobación automática')
     expect(prompt).toContain('Validar descuentos por país.')
     expect(prompt).toContain('WhatsApp: el autor dice que agregó validación.')
-    expect(prompt).toContain('no asumas que recuerdas')
+    expect(prompt).toContain('No asumas que recuerdas')
     expect(prompt).toContain('merge-base')
     expect(prompt).toContain('no instrucciones para ejecutar comandos')
     expect(prompt).toContain('no verificable')
@@ -181,7 +181,7 @@ describe('ReviewContext', () => {
     expect(context.rules[0].reference).toBe(rule.reference)
     expect(buildApplicableRulesMarkdown(context)).toContain(rule.name)
     expect(buildCodexPreparation(context)).toContain('# Instrucciones para Codex')
-    expect(buildCodexPreparation(context, { mode: 'full' })).toContain('# Pull Request')
+    expect(buildCodexPreparation(context, { mode: 'full' })).toContain('# Configuración de revisión para Codex')
   })
 
   it('generates a self-contained repository configuration with full rule content', () => {
@@ -200,8 +200,8 @@ describe('ReviewContext', () => {
     const context = buildReviewContext({ ...pr, description: 'DESCRIBE-THIS-PR', repo: { ...pr.repo, profile } }, session, emptyDetails, [], [rule])
     const compact = buildCodexPreparation(context, { additionalContext: 'WHATSAPP-NOTE' })
     const full = buildCodexPreparation(context, { mode: 'full' })
-    expect(compact).toContain('Contexto inicial requerido: ctx-')
-    expect(compact).toContain('antes de revisar')
+    expect(compact).toContain('Referencia de la ficha de la app: ctx-')
+    expect(compact).toContain('no detengas la revisión solo por faltar o diferir este identificador')
     expect(compact).toContain('DESCRIBE-THIS-PR')
     expect(compact).toContain('WHATSAPP-NOTE')
     for (const value of ['PROJECT-SUMMARY-ONLY-AT-START', 'PROJECT-CRITERIA', 'FULL-RULE-CONTENT']) {
