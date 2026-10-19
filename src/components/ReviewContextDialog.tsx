@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
 import { getReviewContextDetails } from '../lib/bitbucket'
 import { buildApplicableRulesMarkdown, buildCodexPreparation, buildReviewContext, buildReviewContextJson, buildReviewContextMarkdown } from '../lib/reviewContext'
+import { sessionCacheKey } from '../lib/queryIdentity'
 import { resolveRulepacksForRepository } from '../lib/rulepacks'
 import { getCustomRules } from '../lib/storage'
 import type { PullRequest, Session } from '../types'
@@ -17,7 +18,7 @@ export default function ReviewContextDialog({ pr, session, onClose }: { pr: Pull
   const close = useCallback(onClose, [onClose])
   useModalDialog(true, dialogRef, close)
   const query = useQuery({
-    queryKey: ['review-context', pr.repo.workspace, pr.repo.repo, pr.id, pr.updated_on],
+    queryKey: ['review-context', sessionCacheKey(session), pr.repo.workspace, pr.repo.repo, pr.id, pr.updated_on],
     queryFn: () => getReviewContextDetails(pr, session),
     staleTime: 60_000,
   })

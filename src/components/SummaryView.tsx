@@ -4,14 +4,14 @@ import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, Check
 import AnimatedNumber from './AnimatedNumber'
 import ConfirmDialog from './ConfirmDialog'
 import DateRangePicker from './DateRangePicker'
-import { rangeFor, type DateRange } from '../lib/dateRange'
+import type { DateRange } from '../lib/dateRange'
 import { formatDate, relativeTime } from '../lib/dashboard'
 import { safeBitbucketUrl } from '../lib/externalLinks'
-import { historyCoverageForRepositories, historyPullRequestsForRepositories } from '../lib/reviewHistory'
+import { historyPullRequestsForRepositories } from '../lib/reviewHistory'
 import { previousDateRange, summaryMetricsForRange, type SummaryEvent } from '../lib/summary'
-import { useReviewHistorySync } from '../hooks/useReviewHistorySync'
+import { useSummaryHistory } from '../hooks/useSummaryHistory'
 import { toast } from 'sonner'
-import type { PullRequest, RepoConfig, Session } from '../types'
+import type { RepoConfig, Session } from '../types'
 
 const eventCopy: Record<SummaryEvent['event']['type'], { label: string; icon: typeof MessageCircle }> = {
   comment: { label: 'Comentaste', icon: MessageCircle },
@@ -20,7 +20,8 @@ const eventCopy: Record<SummaryEvent['event']['type'], { label: string; icon: ty
   changes_requested: { label: 'Pediste cambios', icon: ArrowUpRight },
 }
 
-function Delta({ current, previous }: { current: number; previous: number }) {
+function Delta({ current, previous, showUnavailable = false }: { current: number; previous?: number; showUnavailable?: boolean }) {
+  if (previous === undefined) return showUnavailable ? <small className="summary-delta is-neutral">Sin comparación cargada</small> : null
   const value = current - previous
   if (!value) return <small className="summary-delta is-neutral">Sin variación</small>
   const Icon = value > 0 ? ArrowUpRight : ArrowDownRight
@@ -36,11 +37,11 @@ function SummarySkeleton() {
   </div>
 }
 
-function SummaryEmpty({ hasHistory }: { hasHistory: boolean }) {
+function SummaryEmpty({ incomplete }: { incomplete: boolean }) {
   return <div className="summary-empty" role="status">
     <span className="summary-empty-icon"><Sparkles size={24} /></span>
-    <strong>{hasHistory ? 'No hay actividad en este período' : 'Aún no hay actividad para mostrar'}</strong>
-    <p>{hasHistory ? 'Prueba otro rango para encontrar tus revisiones, comentarios y decisiones.' : 'Cuando el histórico termine de sincronizarse, aquí verás el pulso de tus revisiones.'}</p>
+    <strong>{incomplete ? 'El período aún no está completo' : 'No hay actividad en este período'}</strong>
+    <p>{incomplete ? 'Reintenta la carga pendiente. No presentamos la información que falta como cero actividad.' : 'Prueba otro rango para encontrar tus revisiones, comentarios y decisiones.'}</p>
   </div>
 }
 
@@ -75,7 +76,7 @@ type SummaryMetrics = ReturnType<typeof summaryMetricsForRange>
 
 function SummaryDashboard({ summary, previousSummary, coverage, hasSyncErrors, range }: {
   summary: SummaryMetrics
-  previousSummary: SummaryMetrics
+  previousSummary?: SummaryMetrics
   coverage: 'complete' | 'partial' | 'empty'
   hasSyncErrors: boolean
   range: DateRange
@@ -90,75 +91,90 @@ function SummaryDashboard({ summary, previousSummary, coverage, hasSyncErrors, r
   const heroDescription = hasSyncErrors
     ? 'Conservamos lo que ya estaba disponible y puedes reintentar los repositorios pendientes.'
     : coverage === 'complete'
-      ? 'El histórico cubre todos tus repositorios configurados.'
-      : 'La comparación mejorará a medida que se complete el histórico local.'
+      ? 'El período cubre todos tus repositorios configurados.'
+      : 'Las cifras son provisionales hasta completar el período seleccionado.'
 
   return <m.div className="summary-dashboard" key={`${range.from}-${range.to}`} {...motionProps}>
     <section className="summary-hero-panel">
       <div className="summary-hero-copy"><span className="summary-panel-eyebrow"><ScanEye size={14} /> Tu pulso de revisión</span><h2>{heroTitle}</h2><p>{heroDescription}</p></div>
-      <div className="summary-hero-value"><strong><AnimatedNumber value={summary.reviewed} /></strong><span>PR con tu actividad</span><Delta current={summary.reviewed} previous={previousSummary.reviewed} /></div>
+      <div className="summary-hero-value"><strong><AnimatedNumber value={summary.reviewed} /></strong><span>PR con tu actividad</span><Delta current={summary.reviewed} previous={previousSummary?.reviewed} showUnavailable /></div>
     </section>
     <div className="summary-metrics" aria-label="Métricas de revisión">
-      <div className="summary-metric metric-primary"><span><ScanEye size={18} /></span><strong><AnimatedNumber value={summary.reviewed} /></strong><small>PR revisados</small><Delta current={summary.reviewed} previous={previousSummary.reviewed} /></div>
-      <div className="summary-metric"><span><MessageCircle size={18} /></span><strong><AnimatedNumber value={summary.comments} /></strong><small>Comentarios</small><Delta current={summary.comments} previous={previousSummary.comments} /></div>
-      <div className="summary-metric"><span><CheckCircle2 size={18} /></span><strong><AnimatedNumber value={summary.approved} /></strong><small>Aprobados</small><Delta current={summary.approved} previous={previousSummary.approved} /></div>
-      <div className="summary-metric"><span><GitPullRequest size={18} /></span><strong><AnimatedNumber value={summary.changes} /></strong><small>Cambios solicitados</small><Delta current={summary.changes} previous={previousSummary.changes} /></div>
+      <div className="summary-metric metric-primary"><span><ScanEye size={18} /></span><strong><AnimatedNumber value={summary.reviewed} /></strong><small>PR revisados</small><Delta current={summary.reviewed} previous={previousSummary?.reviewed} /></div>
+      <div className="summary-metric"><span><MessageCircle size={18} /></span><strong><AnimatedNumber value={summary.comments} /></strong><small>Comentarios</small><Delta current={summary.comments} previous={previousSummary?.comments} /></div>
+      <div className="summary-metric"><span><CheckCircle2 size={18} /></span><strong><AnimatedNumber value={summary.approved} /></strong><small>Aprobados</small><Delta current={summary.approved} previous={previousSummary?.approved} /></div>
+      <div className="summary-metric"><span><GitPullRequest size={18} /></span><strong><AnimatedNumber value={summary.changes} /></strong><small>Cambios solicitados</small><Delta current={summary.changes} previous={previousSummary?.changes} /></div>
     </div>
     <div className="summary-dashboard-grid"><ActivityChart points={summary.activity} /><RepositoryBreakdown repositories={summary.repositories} /><RecentActivity events={summary.events} /></div>
   </m.div>
 }
 
-type HistorySync = ReturnType<typeof useReviewHistorySync>
+type HistorySync = ReturnType<typeof useSummaryHistory>
+
+function historyStatusCopy(sync: HistorySync, historyCount: number) {
+  const records = `${historyCount} PR ${historyCount === 1 ? 'registrado' : 'registrados'}`
+  const message = sync.syncing
+    ? `Cargando período · ${sync.completedPeriods} de ${sync.periodCount} ${sync.periodCount === 1 ? 'consulta mensual' : 'consultas mensuales'}`
+    : sync.errorCount > 0
+      ? `Período con errores · ${records}`
+      : sync.isComplete
+        ? `Período completo · ${records}`
+        : `Período parcial · ${records}`
+  const detail = sync.errorCount > 0
+    ? `${sync.errorCount} ${sync.errorCount === 1 ? 'carga no pudo' : 'cargas no pudieron'} actualizarse. Puedes reintentar sin perder lo guardado.`
+    : sync.persistenceFailed
+      ? 'El navegador no pudo guardar la caché; los datos siguen disponibles en esta sesión.'
+      : sync.isComplete
+        ? 'Reutilizamos los meses consultados. El mes actual se actualiza en segundo plano cada 10 minutos mientras esta vista está abierta.'
+        : 'Cifras provisionales: faltan datos o Bitbucket alcanzó el límite de paginación. Reintenta la carga.'
+  return { message, detail }
+}
 
 function SummaryHistoryStatus({ sync, historyCount, reposCount }: { sync: HistorySync; historyCount: number; reposCount: number }) {
-  const message = sync.syncing
-    ? `Sincronizando histórico · ${sync.completedRepositories} de ${sync.repositoryCount} repositorios`
-    : sync.errorCount > 0
-      ? `Histórico con errores · ${historyCount} PR registrados`
-      : sync.isComplete
-        ? `Histórico completo · ${historyCount} PR registrados`
-        : `Histórico local parcial · ${historyCount} PR registrados`
-  const detail = sync.errorCount > 0
-    ? `${sync.errorCount} ${sync.errorCount === 1 ? 'repositorio no pudo' : 'repositorios no pudieron'} actualizarse. Puedes reintentar sin perder lo guardado.`
-    : 'La cola rápida sigue actualizando los PR abiertos mientras este histórico se completa.'
+  const { message, detail } = historyStatusCopy(sync, historyCount)
   return <div className={`summary-history-status${sync.errorCount > 0 ? ' has-error' : ''}`} role={sync.errorCount > 0 ? 'alert' : 'status'} aria-live="polite">
     <span className="summary-history-icon">{sync.errorCount > 0 ? <CircleAlert size={16} /> : <GitPullRequest size={16} />}</span>
     <span className="summary-history-copy"><strong>{message}</strong><small>{detail}</small></span>
-    <button type="button" className="button button-secondary summary-history-refresh" onClick={sync.refresh} disabled={sync.syncing || !reposCount}><RefreshCw size={14} className={sync.syncing ? 'spin' : ''} />{sync.syncing ? 'Sincronizando…' : 'Actualizar histórico'}</button>
+    <button type="button" className="button button-secondary summary-history-refresh" onClick={() => void sync.refresh()} disabled={sync.syncing || !reposCount}><RefreshCw size={14} className={sync.syncing ? 'spin' : ''} />{sync.syncing ? 'Actualizando…' : 'Actualizar período'}</button>
   </div>
 }
 
-function SummaryBody({ sync, historyCount, summary, previousSummary, coverage, range }: { sync: HistorySync; historyCount: number; summary: SummaryMetrics; previousSummary: SummaryMetrics; coverage: 'complete' | 'partial' | 'empty'; range: DateRange }) {
-  const showLoading = sync.syncing && historyCount === 0
+function SummaryBody({ sync, summary, previousSummary, coverage, range }: { sync: HistorySync; summary: SummaryMetrics; previousSummary?: SummaryMetrics; coverage: 'complete' | 'partial' | 'empty'; range: DateRange }) {
+  const showLoading = sync.syncing && !sync.hasData
   const showEmpty = !showLoading && !summary.events.length
   return <AnimatePresence mode="wait">
-    {showLoading ? <SummarySkeleton /> : showEmpty ? <SummaryEmpty hasHistory={historyCount > 0} /> : <SummaryDashboard summary={summary} previousSummary={previousSummary} coverage={coverage} hasSyncErrors={sync.errorCount > 0} range={range} />}
+    {showLoading ? <SummarySkeleton /> : showEmpty ? <SummaryEmpty incomplete={!sync.isComplete} /> : <SummaryDashboard summary={summary} previousSummary={previousSummary} coverage={coverage} hasSyncErrors={sync.errorCount > 0} range={range} />}
   </AnimatePresence>
 }
 
-export default function SummaryView({ prs, repos, session }: { prs: PullRequest[]; repos: RepoConfig[]; session: Session }) {
-  const [range, setRange] = useState<DateRange>(() => rangeFor('month'))
+export default function SummaryView({ repos, session, range, onRangeChange }: { repos: RepoConfig[]; session: Session; range: DateRange; onRangeChange: (range: DateRange) => void }) {
+  const [comparisonRange, setComparisonRange] = useState<string | null>(null)
   const [showRebuildConfirm, setShowRebuildConfirm] = useState(false)
-  const historySync = useReviewHistorySync(prs, repos, session)
+  const rangeKey = `${range.from}-${range.to}`
+  const compare = comparisonRange === rangeKey
+  const historySync = useSummaryHistory(repos, session, range)
+  const previousRange = previousDateRange(range)
+  const comparisonSync = useSummaryHistory(repos, session, previousRange, compare)
   const { history } = historySync
 
   const summary = useMemo(() => summaryMetricsForRange(history, repos, session, range), [history, range, repos, session])
-  const previousSummary = useMemo(() => summaryMetricsForRange(history, repos, session, previousDateRange(range)), [history, range, repos, session])
+  const previousSummary = comparisonSync.isComplete ? summaryMetricsForRange(comparisonSync.history, repos, session, previousRange) : undefined
   const label = `${formatDate(`${range.from}T12:00:00`)} — ${formatDate(`${range.to}T12:00:00`)}`
-  const coverage = historyCoverageForRepositories(history, repos)
+  const coverage = historySync.isComplete ? 'complete' : 'partial'
   const historyCount = historyPullRequestsForRepositories(history, repos).length
   const rebuildHistory = () => {
-    historySync.reset()
+    void historySync.reload()
     setShowRebuildConfirm(false)
-    toast.success('Histórico local reiniciado', { description: 'Comenzaremos a reconstruirlo desde Bitbucket.' })
+    toast('Recargando el período', { description: 'Conservamos lo guardado mientras volvemos a consultar Bitbucket.' })
   }
 
   return <section className="product-view summary-view" aria-labelledby="summary-title">
     <div className="queue-intro"><div><span className="section-kicker">Actividad personal</span><h1 id="summary-title">Tu resumen</h1><p>Una lectura rápida de tu trabajo de revisión en Bitbucket.</p></div><span className="view-period"><TrendingUp size={16} /> {label}</span></div>
-    <DateRangePicker value={range} onChange={setRange} />
+    <DateRangePicker value={range} onChange={onRangeChange} />
     <SummaryHistoryStatus sync={historySync} historyCount={historyCount} reposCount={repos.length} />
-    <SummaryBody sync={historySync} historyCount={historyCount} summary={summary} previousSummary={previousSummary} coverage={coverage} range={range} />
-    <div className="summary-footer-note"><CalendarClock size={15} /> <span>Las cifras se calculan con tu histórico local y respetan el período seleccionado.</span><button type="button" className="text-button summary-history-reset" onClick={() => setShowRebuildConfirm(true)} disabled={historySync.syncing || !repos.length}><RotateCcw size={13} /> Reconstruir histórico</button></div>
-    <AnimatePresence>{showRebuildConfirm && <ConfirmDialog title="¿Reconstruir el histórico local?" description="Se eliminará únicamente el histórico guardado en este navegador y se volverá a consultar Bitbucket. Tus repositorios y preferencias no cambiarán." confirmLabel="Reconstruir histórico" onConfirm={rebuildHistory} onClose={() => setShowRebuildConfirm(false)} />}</AnimatePresence>
+    <SummaryBody sync={historySync} summary={summary} previousSummary={previousSummary} coverage={coverage} range={range} />
+    <div className="summary-footer-note"><CalendarClock size={15} /> <span>Solo cargamos los meses del período elegido; se guardan por cuenta y repositorio.</span><button type="button" className="text-button" onClick={() => { setComparisonRange(rangeKey); if (compare) void comparisonSync.refresh() }} disabled={comparisonSync.syncing || !repos.length}>{comparisonSync.syncing ? 'Cargando comparación…' : comparisonSync.errorCount && compare ? 'Reintentar comparación' : 'Comparar con período anterior'}</button><button type="button" className="text-button summary-history-reset" onClick={() => setShowRebuildConfirm(true)} disabled={historySync.syncing || !repos.length}><RotateCcw size={13} /> Recargar período</button></div>
+    {compare && <p role={comparisonSync.errorCount ? 'alert' : 'status'} className="summary-panel-empty">{comparisonSync.syncing ? 'Cargando el período anterior sin cambiar el rango seleccionado…' : comparisonSync.errorCount || !comparisonSync.isComplete ? 'Comparación incompleta. Puedes reintentar sin perder el resumen actual.' : 'Comparación cargada con el período anterior de igual duración.'}</p>}
+    <AnimatePresence>{showRebuildConfirm && <ConfirmDialog title="¿Volver a cargar el período?" description="Consultaremos de nuevo los meses seleccionados y su actividad en Bitbucket. Conservamos la caché anterior si ocurre un error; tus otros períodos, repositorios y preferencias no cambiarán." confirmLabel="Recargar período" onConfirm={rebuildHistory} onClose={() => setShowRebuildConfirm(false)} />}</AnimatePresence>
   </section>
 }

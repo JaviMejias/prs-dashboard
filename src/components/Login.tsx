@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowRight, CheckCircle2, CircleAlert, Eye, EyeOff, GitCommitHorizontal, GitPullRequest, RefreshCw, ShieldCheck, UserRound } from 'lucide-react'
+import { ArrowRight, CheckCircle2, CircleAlert, ExternalLink, Eye, EyeOff, GitCommitHorizontal, GitPullRequest, KeyRound, RefreshCw, ShieldCheck, UserRound } from 'lucide-react'
 import { verifyUser } from '../lib/bitbucket'
 import { saveSession } from '../lib/storage'
 import type { Session } from '../types'
 
-function midnightTomorrow() {
+function sessionExpiry() {
   const date = new Date()
   date.setHours(24, 0, 0, 0)
   return date.getTime()
@@ -27,7 +27,7 @@ export default function Login({ onLogin }: { onLogin: (session: Session) => void
     }
     setBusy(true)
     try {
-      const draft = { email: email.trim(), token, expiresAt: midnightTomorrow() }
+      const draft = { email: email.trim(), token, expiresAt: sessionExpiry() }
       const user = await verifyUser(draft)
       const session = { ...draft, uuid: user.uuid, displayName: user.display_name }
       saveSession(session)
@@ -128,6 +128,22 @@ export default function Login({ onLogin }: { onLogin: (session: Session) => void
             {busy ? <><RefreshCw className="spin" size={17} /> Verificando…</> : <><ShieldCheck size={17} /> Conectar con Bitbucket</>}
           </button>
         </form>
+        <section className="api-token-help" aria-labelledby="api-token-help-title">
+          <h3 id="api-token-help-title"><KeyRound size={15} /> ¿Necesitas crear el token?</h3>
+          <a className="api-token-create-link" href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noreferrer">
+            Crear API token en Atlassian <ExternalLink size={13} aria-hidden="true" />
+          </a>
+          <p>Al elegir Bitbucket, marca solo <strong>Read</strong> en <strong>Repositories</strong>, <strong>Pull requests</strong> y <strong>User data</strong>. La app no necesita permisos Write ni Admin.</p>
+          <details>
+            <summary>Ver pasos y vencimiento</summary>
+            <ol>
+              <li>En Seguridad de tu cuenta Atlassian, elige <strong>Create API token with scopes</strong>.</li>
+              <li>Ponle un nombre, define la fecha de expiración y selecciona <strong>Bitbucket</strong>.</li>
+              <li>Activa únicamente los tres permisos <strong>Read</strong> indicados arriba y crea el token.</li>
+              <li>Cópialo en este formulario: Atlassian lo muestra una sola vez. Por defecto vence en un año; puedes elegir entre 1 y 365 días.</li>
+            </ol>
+          </details>
+        </section>
         <p className="privacy-note"><ShieldCheck size={15} /> El token queda guardado únicamente en este navegador y se envía directamente a Bitbucket.</p>
       </section>
     </main>

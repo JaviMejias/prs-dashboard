@@ -39,7 +39,9 @@
 ## Dataset navigation
 
 - La cola de PR usa carga incremental explícita.
-- Resumen usa histórico local de `localStorage`; los rangos son estado transitorio de la vista.
+- Resumen carga inicialmente el mes actual. Los meses se consultan bajo demanda y se guardan en `localStorage`, separados por cuenta, repositorio y zona horaria; los años reutilizan los meses disponibles.
+- El rango seleccionado pertenece al dashboard y se conserva al navegar entre Cola, Resumen y Preparar durante la sesión. Una nueva sesión comienza en el mes actual.
+- La comparación con el período anterior solo descarga información al pedirla explícitamente; si ya hay cobertura guardada, puede mostrarla sin red.
 - El estado de carga conserva la geometría aproximada del contenido final.
 - Los números parciales se etiquetan como provisionales y nunca se presentan como un total remoto completo.
 
@@ -47,9 +49,10 @@
 
 | Operation | Trigger | Pending | Success feedback | Failure recovery | Focus outcome |
 |---|---|---|---|---|---|
-| Refresh history | `Actualizar histórico` | botón ocupado + estado de sincronización | cifras actualizadas | reintentar sin perder histórico anterior | foco permanece en el control |
-| Rebuild history | `Reconstruir histórico` | diálogo de confirmación | toast y nueva sincronización | cancelar o reintentar | foco vuelve al disparador |
-| Change date range | preset/calendario | transición corta del dashboard | métricas y paneles actualizados | conservar rango válido anterior | foco permanece en el selector |
+| Refresh period | `Actualizar período` | botón ocupado + estado de carga | cifras actualizadas | reintentar sin perder la caché anterior | foco permanece en el control |
+| Reload period | `Recargar período` | confirmación; vuelve a leer también la actividad de los PR | toast de inicio y estado persistente | conserva datos anteriores si falla | foco vuelve al disparador |
+| Compare periods | `Comparar con período anterior` | indicador sin ocultar el resumen | deltas solo con cobertura suficiente | reintento explícito sin alterar el rango | foco permanece en el control |
+| Change date range | preset/calendario | skeleton solo sin caché; avance por meses/repositorio | métricas del rango seleccionado | rango y caché previa conservados; datos parciales etiquetados | foco permanece en el selector |
 
 ## Navigation and responsive behavior
 
@@ -66,8 +69,19 @@
 ## Async and resilience
 
 - La cola puede refrescarse en segundo plano sin ocultar datos existentes.
-- El histórico se guarda en `localStorage` y se fusiona por identificador de evento para no perder actividad previa.
+- La caché mensual es independiente del histórico antiguo y de la cola rápida: no se mezcla cobertura ni actividad de otras cuentas. Una lectura completa reemplaza su mes; un error o una lectura limitada conserva lo ya disponible.
+- Las consultas terminan y guardan sus resultados aunque se salga de Resumen; una respuesta tardía no reemplaza el rango activo. Se permiten dos trabajos de período concurrentes y cuatro lecturas de actividad por trabajo, con timeout por petición.
+- Navegar no vuelve a descargar meses guardados. Mientras Resumen está abierto, el mes actual se actualiza en segundo plano cada 10 minutos; los meses anteriores se actualizan manualmente. Al cambiar el día local se amplía la cobertura del mes actual.
+- Las métricas y los límites remotos usan el mismo calendario local. Un período sin actividad solo se presenta como tal cuando su cobertura está completa.
+- Si falla `localStorage`, la caché en memoria sigue funcionando y se muestra la limitación de persistencia.
 - La sincronización manual es segura de repetir; los errores por repositorio se muestran y permiten reintento.
+
+## Acceso personal
+
+- Resumen, Reglas, Tecnologías y versiones, Remoto local en Preparar → Autores, y Revisión local se muestran solo cuando el correo de la sesión validada es `javier.mejias@kontrollererp.cl`; la navegación también bloquea Resumen para otras cuentas.
+- Este filtro vive en el cliente y sirve para separar la interfaz de uso cotidiano. No es autorización de seguridad: los datos locales y el código de la aplicación no quedan protegidos ante alguien con acceso al mismo navegador o a las herramientas de desarrollo. Para confidencialidad real se necesita autorización en un backend o despliegues separados.
+- El login verifica el API token contra Bitbucket antes de crear la sesión. Las solicitudes abortan a los 30 segundos y muestran un error recuperable, en lugar de dejar el formulario cargando indefinidamente.
+- La guía de revisión para Codex incluye las respuestas a comentarios tuyos posteriores a tu última revisión registrada, emparejadas con el comentario original. Sin una revisión previa, incluye las respuestas pero aclara que no puede confirmar si son nuevas. La app no registra la apertura de un hilo como lectura.
 
 ## Verification
 

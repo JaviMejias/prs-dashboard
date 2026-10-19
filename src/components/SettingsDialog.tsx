@@ -5,7 +5,6 @@ import { BellRing, Check, LogOut, Monitor, Volume2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
 import { PULL_REQUEST_POLL_INTERVAL_MS } from '../lib/notifications'
-import { saveNotificationPreferences } from '../lib/storage'
 import type { NotificationPreferences } from '../types'
 
 export default function SettingsDialog({
@@ -37,7 +36,6 @@ export default function SettingsDialog({
     }
     const next = { ...preferences, [key]: !preferences[key] }
     setPreferences(next)
-    saveNotificationPreferences(next)
   }
 
   return (

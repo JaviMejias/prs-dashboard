@@ -133,6 +133,7 @@
       "additionalProperties": false,
       "required": ["content"],
       "properties": {
+        "id": { "type": "integer", "minimum": 0 }, "parentId": { "type": "integer", "minimum": 0 },
         "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" },
         "content": { "type": "string" }, "path": { "type": "string" },
         "line": { "type": "integer", "minimum": 1 }, "url": { "type": "string", "format": "uri" }
@@ -220,6 +221,7 @@
         "id": { "type": "string" }, "name": { "type": "string" }, "version": { "type": "string" },
         "description": { "type": "string" }, "reviewRules": { "type": "string" }, "testing": { "type": "string" },
         "references": { "type": "array", "items": { "type": "string" } }, "source": { "type": "string", "enum": ["git", "local"] },
+        "category": { "type": "string", "enum": ["general", "technology", "framework", "project"] }, "technology": { "type": "string" },
         "reviewRulesContent": { "type": "string" }, "testingContent": { "type": "string" },
         "referenceContents": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["path", "content"], "properties": { "path": { "type": "string" }, "content": { "type": "string" } } } }
       }

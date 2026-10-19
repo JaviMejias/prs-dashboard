@@ -57,12 +57,20 @@ export function validateRulepackMetadata(rulepack: Partial<Rulepack>, contents: 
   return issues
 }
 
-export function validateRuleMetadata(rule: Partial<ReviewRule>) {
+export function validateRuleMetadata(value: unknown) {
   const issues: string[] = []
-  if (!rule.id?.trim()) issues.push('falta id')
-  if (!rule.name?.trim()) issues.push('falta name')
-  if (!rule.category) issues.push('falta category')
-  if (!rule.content?.trim()) issues.push('falta content')
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return ['formato de regla inválido']
+  const rule = value as Record<string, unknown>
+  if (typeof rule.id !== 'string' || !rule.id.trim()) issues.push('falta id')
+  if (typeof rule.name !== 'string' || !rule.name.trim()) issues.push('falta name')
+  if (!['general', 'technology', 'framework', 'project'].includes(String(rule.category))) issues.push('category inválida')
+  if (typeof rule.description !== 'string' || !rule.description.trim()) issues.push('falta description')
+  if (typeof rule.content !== 'string' || !rule.content.trim()) issues.push('falta content')
+  if (rule.version !== undefined && (typeof rule.version !== 'string' || !rule.version.trim())) issues.push('version inválida')
+  if (rule.technology !== undefined && typeof rule.technology !== 'string') issues.push('technology debe ser texto')
+  if (rule.rulepackId !== undefined && typeof rule.rulepackId !== 'string') issues.push('rulepackId debe ser texto')
+  if (rule.sources !== undefined && (!Array.isArray(rule.sources) || !rule.sources.every((source) => typeof source === 'string'))) issues.push('sources debe ser una lista de textos')
+  if (rule.source !== 'local' && rule.source !== 'git') issues.push('source inválido')
   return issues
 }
 

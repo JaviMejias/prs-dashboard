@@ -99,8 +99,8 @@ Bitbucket Cloud API
 ~~~
 
 La lógica de decisión vive en funciones TypeScript y el navegador es la
-persistencia principal. La configuración usa <code>localStorage</code>; la
-sesión de Bitbucket usa <code>sessionStorage</code> y desaparece al cerrar la
+persistencia principal. La configuración y el historial usan <code>localStorage</code>;
+la sesión de Bitbucket usa <code>sessionStorage</code> y desaparece al cerrar la
 pestaña. No existe una API propia ni una arquitectura de dominio inspirada en
 backend.
 
@@ -146,8 +146,28 @@ de afirmar con certeza que hubo cambios.
 
 ## Sincronización y notificaciones
 
-Mientras está abierta, la aplicación consulta Bitbucket cada 60 segundos,
+Mientras está abierta, la cola consulta Bitbucket cada 10 minutos,
 vuelve a validar al recuperar el foco y permite actualización manual.
+
+Resumen empieza por el mes actual y solo consulta meses anteriores cuando los
+seleccionas. Su caché mensual se guarda por cuenta de Bitbucket, repositorio y
+zona horaria; seleccionar un año reutiliza los meses ya consultados. El rango
+se conserva al cambiar de vista y navegar no vuelve a descargarlo. El mes
+actual se actualiza cada 10 minutos mientras Resumen está abierto; los demás
+meses se actualizan con `Actualizar período`. `Recargar período` también
+vuelve a leer la actividad de los PR sin borrar los datos si falla.
+
+La comparación con el período anterior de igual duración no se descarga hasta
+pedirla; los deltas también pueden aprovechar una cobertura que ya esté
+guardada. Los errores, la cobertura parcial y los problemas de persistencia se
+indican en la vista. El histórico antiguo no se mezcla con la nueva caché,
+porque no permite atribuir con seguridad su cobertura a una cuenta.
+
+Bitbucket permite filtrar la lista de PR por fechas, pero la actividad de cada
+PR requiere lecturas adicionales. Se buscan PR actualizados desde el inicio
+del mes y creados antes de su final: un PR revisado antes y modificado después
+no debe desaparecer del resumen. La caché respeta las métricas existentes;
+no reconstruye decisiones antiguas que Bitbucket ya no exponga.
 
 Las notificaciones locales se reservan para:
 

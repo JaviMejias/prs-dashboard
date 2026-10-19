@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 const numberFormatter = new Intl.NumberFormat('es-CL')
 
 export default function AnimatedNumber({ value }: { value: number }) {
-  const previousValue = useRef(0)
-  const [displayValue, setDisplayValue] = useState(0)
+  const previousValue = useRef(value)
+  const [displayValue, setDisplayValue] = useState(value)
 
   useEffect(() => {
     const start = previousValue.current

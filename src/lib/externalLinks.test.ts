@@ -6,7 +6,12 @@ describe('safeBitbucketUrl', () => {
     expect(safeBitbucketUrl('https://bitbucket.org/workspace/repo/pull-requests/1')).toBe('https://bitbucket.org/workspace/repo/pull-requests/1')
   })
 
-  it.each(['javascript:alert(1)', 'https://evil.example/pr/1', 'http://bitbucket.org/workspace/repo/pull-requests/1', 'not a URL'])('rejects unsafe or malformed links: %s', (value) => {
+  it.each([
+    'javascript:alert(1)',
+    'https://evil.example/pr/1',
+    'http://bitbucket.org/workspace/repo/pull-requests/1',
+    'not a URL',
+  ])('rejects unsafe or malformed links: %s', (value) => {
     expect(safeBitbucketUrl(value)).toBeUndefined()
   })
 })

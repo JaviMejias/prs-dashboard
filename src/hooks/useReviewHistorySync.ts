@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useQueries, type UseQueryResult } from '@tanstack/react-query'
+import { useQueries, type Query, type UseQueryResult } from '@tanstack/react-query'
 import { getReviewHistorySnapshot } from '../lib/bitbucket'
+import { PULL_REQUEST_POLL_INTERVAL_MS } from '../lib/notifications'
 import { repositoryKey } from '../lib/notifications'
+import { sessionCacheKey } from '../lib/queryIdentity'
 import { historyCoverageForRepositories, markRepositoryCoverage, mergeReviewHistory } from '../lib/reviewHistory'
 import { clearReviewHistory, emptyReviewHistory, getReviewHistory, saveReviewHistory } from '../lib/storage'
 import type { PullRequest, RepoConfig, Session } from '../types'
 
 type HistorySnapshot = { prs: PullRequest[]; complete: boolean }
-const HISTORY_REFRESH_INTERVAL_MS = 15 * 60_000
+const HISTORY_REFRESH_INTERVAL_MS = PULL_REQUEST_POLL_INTERVAL_MS
+const HISTORY_PARTIAL_RETRY_INTERVAL_MS = 30_000
 
 export function useReviewHistorySync(
   prs: PullRequest[],
@@ -28,10 +31,11 @@ export function useReviewHistorySync(
 
   const queries = useQueries({
     queries: repos.map((repo) => ({
-      queryKey: ['review-history', historyGeneration, repo.workspace, repo.repo],
-      queryFn: () => getReviewHistorySnapshot(repo, session, baseHistory.repositories[repositoryKey(repo)]?.coverage === 'complete' ? baseHistory.repositories[repositoryKey(repo)]?.pullRequests : undefined),
+      queryKey: ['review-history', sessionCacheKey(session), historyGeneration, repo.workspace, repo.repo],
+      queryFn: async (): Promise<HistorySnapshot> => getReviewHistorySnapshot(repo, session, baseHistory.repositories[repositoryKey(repo)]?.coverage === 'complete' ? baseHistory.repositories[repositoryKey(repo)]?.pullRequests : undefined),
       enabled: shouldSync,
-      staleTime: 15 * 60_000,
+      staleTime: (query: Query<HistorySnapshot, Error>) => query.state.data?.complete === false ? 0 : PULL_REQUEST_POLL_INTERVAL_MS,
+      refetchInterval: (query: Query<HistorySnapshot, Error>) => query.state.data?.complete === false ? HISTORY_PARTIAL_RETRY_INTERVAL_MS : false,
       refetchOnMount: true,
       refetchOnWindowFocus: false,
     })),
