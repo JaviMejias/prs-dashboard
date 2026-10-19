@@ -3190,6 +3190,9 @@ input:focus-visible,
   opacity: .72;
 }
 
+.pwa-update > button { min-inline-size: 8rem; }
+.pwa-update [role="alert"] { color: var(--danger); }
+
 .pwa-close {
   position: absolute;
   top: 4px;
