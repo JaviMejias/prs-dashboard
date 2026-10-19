@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { useModalDialog } from '../hooks/useDismissableLayer'
 
-export default function PreparationDialog({ title, description, dirty = false, onClose, children }: { title: string; description?: string; dirty?: boolean; onClose: () => void; children: ReactNode }) {
+export default function PreparationDialog({ title, description, dirty = false, className = '', onClose, children }: { title: string; description?: string; dirty?: boolean; className?: string; onClose: () => void; children: ReactNode }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const dirtyRef = useRef(dirty)
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -34,7 +34,7 @@ export default function PreparationDialog({ title, description, dirty = false, o
     window.addEventListener('beforeunload', beforeUnload)
     return () => window.removeEventListener('beforeunload', beforeUnload)
   }, [dirty])
-  return createPortal(<dialog ref={dialogRef} aria-modal="true" aria-labelledby={titleId} className="settings-dialog preparation-dialog" tabIndex={-1} onCancel={(event) => { event.preventDefault(); requestClose() }}>
+  return createPortal(<dialog ref={dialogRef} aria-modal="true" aria-labelledby={titleId} className={`settings-dialog preparation-dialog ${className}`} tabIndex={-1} onCancel={(event) => { event.preventDefault(); requestClose() }}>
       <header className="overlay-heading settings-heading"><div><span className="section-kicker">Preparar</span><h2 id={titleId}>{discardOpen ? '¿Descartar los cambios sin guardar?' : title}</h2>{!discardOpen && description && <p>{description}</p>}</div><button type="button" className="icon-button" aria-label="Cerrar preparación" onClick={requestClose}><X size={20} /></button></header>
       {discardOpen ? <div className="preparation-dialog-body"><p>La ficha guardada no cambiará. Se perderá lo que editaste en este diálogo.</p><div className="preparation-actions"><button ref={cancelRef} type="button" className="button button-primary" onClick={resumeEditing}>Seguir editando</button><button type="button" className="button button-ghost button-danger" onClick={onClose}>Descartar cambios</button></div></div> : children}
   </dialog>, document.body)

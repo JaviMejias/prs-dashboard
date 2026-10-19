@@ -4199,6 +4199,27 @@ input:focus-visible,
 .preparation-advanced > div > p { color: var(--text-secondary); font-size: .8rem; line-height: 1.6; }
 .preparation-dialog { display: flex; flex-direction: column; width: min(900px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; color: var(--text-primary); }
 .preparation-dialog:not([open]) { display: none; }
+.project-session-bar { margin: 1rem clamp(24px, 2.5vw, 40px) 0; padding: .8rem 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; border: 1px solid var(--line-subtle); border-radius: var(--radius-control); background: var(--surface-1); }
+.project-session-bar > div { flex: 1 1 18rem; display: flex; align-items: center; gap: .6rem; color: var(--text-secondary); font-size: .8rem; line-height: 1.5; }
+.project-session-bar > div svg { flex: 0 0 auto; color: var(--signal); }
+.project-session-bar > p { flex-basis: 100%; margin: 0; color: var(--qa-new); font-size: .75rem; }
+.project-session-select { display: grid; gap: .5rem; color: var(--text-secondary); font-size: .8rem; }
+.project-session-body { flex: 1; }
+.project-session-select select { width: 100%; min-width: 0; height: 44px; padding: 0 .75rem; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface-2); color: var(--text-primary); font: inherit; cursor: pointer; }
+.project-session-select select:hover { border-color: var(--signal); }
+.project-session-select select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.project-session-select select:disabled { opacity: .6; cursor: not-allowed; }
+.project-session-version { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-top: .8rem; color: var(--text-tertiary); font-size: .75rem; }
+.project-session-version code { color: var(--signal); }
+.project-session-footer .button-primary { min-width: 210px; }
+.context-guide-mode { margin-top: 1rem; }
+.review-context-hint { color: var(--text-tertiary); font-size: .75rem; line-height: 1.6; }
+@media (max-width: 760px) {
+  .project-session-bar { margin: .75rem 1rem 0; }
+  .project-session-bar > .button { width: 100%; }
+  .project-session-footer { flex-wrap: wrap; }
+  .project-session-footer .button { flex: 1 1 auto; }
+}
 .preparation-dialog::backdrop { background: rgb(3 7 12 / 72%); }
 .preparation-flow-hint { margin: .75rem 0 0; color: var(--text-secondary); font-size: .72rem; line-height: 1.6; }
 .preparation-workspace .button-ghost, .preparation-dialog .button-ghost { background: transparent; color: var(--text-secondary); }

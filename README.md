@@ -201,11 +201,34 @@ La app no analiza la carpeta ni ejecuta Codex. Las referencias oficiales deben
 corresponder a la versión detectada; una fuente de una serie, como Ruby 2.4,
 no se presenta como documentación exacta del parche 2.4.3.
 
-Copiar para Codex y Descargar AGENTS.md generan el mismo contexto del proyecto,
-incluidas sus reglas seleccionadas. No escriben archivos en tu repositorio.
-La ficha también se incorpora al contexto de los PR sin volver a descargar la
-cola. Una preferencia personal no tiene prioridad sobre una convención
-verificada del proyecto y los conflictos deben señalarse explícitamente.
+Nuevo chat / Contexto inicial está siempre disponible y abre un resumen por
+proyecto con una versión identificable. Se comparte una vez por chat. El aviso
+se muestra al comenzar cada día local, también al cambiar el día con la app
+abierta, y vuelve a estar pendiente si cambian la ficha, versiones, preferencias
+aplicables o reglas. No interrumpe otro diálogo abierto. Cerrar el aviso guarda
+solo que atendiste el recordatorio, no que el agente haya recibido el contexto.
+La app no puede detectar otros chats ni comprobar la memoria del agente.
+
+El resumen contiene la ficha, versiones y preferencias, pero las reglas
+avanzadas aparecen como índice, no como instrucciones completas. Si hacen falta,
+Copiar contexto completo y Descargar AGENTS.md conservan su contenido íntegro.
+No escriben archivos en el repositorio: revisa el archivo descargado e intégralo
+sin sobrescribir instrucciones existentes. Una preferencia personal no tiene
+prioridad sobre una convención verificada del proyecto.
+
+La guía de cada PR es compacta por defecto: referencia la versión del contexto
+inicial y conserva descripción, comparación local y conversaciones. Cada
+comentario se incluye una sola vez, con enlaces al comentario padre y a tu
+observación cuando corresponde. No se descartan respuestas antiguas como si
+estuvieran resueltas. Si el agente no tiene la ficha requerida, debe pedirla.
+En Ver contexto puedes activar Incluir contexto completo del proyecto para una
+guía autocontenida. El JSON y el Markdown completos siguen disponibles.
+
+El recordatorio se guarda por cuenta y navegador, separado del respaldo portable;
+si falla el almacenamiento, se conserva en memoria durante esa pantalla y se
+advierte que puede reaparecer al recargar. No consulta Bitbucket ni envía textos
+a ningún agente. Guardar instrucciones evita repetirlas, pero no elimina el
+contexto que el agente necesita leer.
 
 Descargar respaldo guarda fichas, tecnologías, preferencias, selecciones y
 copias de las reglas en JSON portable v2. Restaurar muestra una vista previa y

@@ -4,16 +4,20 @@ import { emptyProjectProfile, projectKey } from '../lib/projectPreparation'
 import { getPreparationSettings, savePreparationSettings } from '../lib/storage'
 import type { PersonalReviewPreferences, PreparationData, RepoConfig } from '../types'
 
-export function usePreparationSettings(setRepos: (repos: RepoConfig[]) => void) {
+export function usePreparationData(setRepos?: (repos: RepoConfig[]) => void) {
   const [data, setData] = useState(getPreparationSettings)
   useEffect(() => {
-    const refresh = () => { const next = getPreparationSettings(); setData(next); setRepos(next.repositories) }
+    const refresh = () => { const next = getPreparationSettings(); setData(next); setRepos?.(next.repositories) }
     window.addEventListener('prcr:preparation-changed', refresh)
     const onStorage = (event: StorageEvent) => { if (event.key === 'prcr:preparation-v1' || event.key === null) refresh() }
     window.addEventListener('storage', onStorage)
     return () => { window.removeEventListener('prcr:preparation-changed', refresh); window.removeEventListener('storage', onStorage) }
   }, [setRepos])
+  return data
+}
 
+export function usePreparationSettings(setRepos: (repos: RepoConfig[]) => void) {
+  const data = usePreparationData(setRepos)
   const updateProject = (repo: RepoConfig, original: RepoConfig) => {
     const current = getPreparationSettings()
     const stored = current.repositories.find((item) => projectKey(item) === projectKey(repo))

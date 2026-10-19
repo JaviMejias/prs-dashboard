@@ -37,6 +37,7 @@ import type { GitWorkflowSettings, NotificationPreferences, RepoConfig, Session 
 const SettingsDialog = lazy(() => import('./components/SettingsDialog'))
 const SummaryView = lazy(() => import('./components/SummaryView'))
 const PreparationView = lazy(() => import('./components/PreparationView'))
+const ProjectSessionLauncher = lazy(() => import('./components/ProjectSessionLauncher'))
 
 type AppView = 'queue' | 'summary' | 'authors'
 
@@ -170,6 +171,7 @@ function DashboardLayout(layoutProps: DashboardLayoutProps) {
   return <div className="app-shell">
     <a className="skip-link" href="#main-content">Saltar a la cola</a>
     <DashboardHeader session={layoutProps.session} activeView={layoutProps.activeView} onViewChange={layoutProps.onViewChange} reviewCount={layoutProps.reviewCount} fetching={layoutProps.fetching} isOnline={layoutProps.isOnline} allRepositoriesFailed={layoutProps.allRepositoriesFailed} errorCount={layoutProps.errorCount} latestSync={layoutProps.latestSync} onRefresh={layoutProps.onRefresh} notificationCenter={layoutProps.notificationCenter} settingsTriggerRef={layoutProps.settingsTriggerRef} onOpenSettings={layoutProps.onOpenSettings} />
+    {hasPersonalAccess(layoutProps.session) && <Suspense fallback={null}><ProjectSessionLauncher key={layoutProps.session.uuid || layoutProps.session.email} session={layoutProps.session} setRepos={layoutProps.setRepos} /></Suspense>}
     <DashboardMain layout={layoutProps} />
     <DashboardMobileNav session={layoutProps.session} activeView={layoutProps.activeView} onViewChange={layoutProps.onViewChange} reviewCount={layoutProps.reviewCount} onOpenSettings={layoutProps.onOpenSettings} />
     <DashboardSettings layout={layoutProps} />
