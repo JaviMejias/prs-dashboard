@@ -16,7 +16,7 @@ export default function DateRangePicker({ value, onChange }: { value: DateRange;
   const [focusedDate, setFocusedDate] = useState(value.from)
   const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' })
   const triggerRefs = useRef<Record<'from' | 'to', HTMLButtonElement | null>>({ from: null, to: null })
-  const calendarRef = useRef<HTMLDivElement>(null)
+  const calendarRef = useRef<HTMLDialogElement>(null)
   const days = useMemo(() => { const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1); const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7)); return Array.from({ length: 42 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return day }) }, [cursor])
   const close = useCallback((restoreFocus = false) => {
     setOpen(false)
@@ -110,11 +110,11 @@ export default function DateRangePicker({ value, onChange }: { value: DateRange;
       {(['from', 'to'] as const).map((key) => <button type="button" ref={(node) => { triggerRefs.current[key] = node }} aria-haspopup="dialog" aria-expanded={open && field === key} aria-controls="summary-date-calendar" className={`date-field-button${field === key && open ? ' is-active' : ''}`} key={key} onClick={() => { setField(key); setCursor(parseDate(value[key])); setFocusedDate(value[key]); setOpen(true) }}><span>{key === 'from' ? 'Desde' : 'Hasta'}</span><strong><CalendarDays size={15} />{display(value[key])}</strong></button>)}
       <ChevronDown className="date-range-arrow" size={16} />
     </div>
-    {open && createPortal(<div id="summary-date-calendar" ref={calendarRef} className="date-calendar-popover" role="dialog" aria-label={`Seleccionar ${field === 'from' ? 'fecha de inicio' : 'fecha de fin'}`} style={position} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); close(true) } }}>
+    {open && createPortal(<dialog open id="summary-date-calendar" ref={calendarRef} className="date-calendar-popover" aria-label={`Seleccionar ${field === 'from' ? 'fecha de inicio' : 'fecha de fin'}`} style={position} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); close(true) } }}>
       <header><button type="button" className="icon-button" aria-label="Mes anterior" onClick={() => { const next = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1); setCursor(next); setFocusedDate(localDate(next)) }}><ChevronLeft size={16} /></button><strong>{monthLabel(cursor)}</strong><button type="button" className="icon-button" aria-label="Mes siguiente" onClick={() => { const next = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1); setCursor(next); setFocusedDate(localDate(next)) }}><ChevronRight size={16} /></button></header>
       <div className="calendar-weekdays" aria-hidden="true">{['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day) => <span key={day}>{day}</span>)}</div>
       <div className="calendar-days" role="group" aria-label={monthLabel(cursor)}>{days.map((day) => { const iso = localDate(day); const selected = iso === value.from || iso === value.to; const between = iso > value.from && iso < value.to; return <button type="button" aria-label={fullDate(day)} aria-pressed={selected} tabIndex={iso === focusedDate ? 0 : -1} data-date={iso} key={iso} className={`${day.getMonth() !== cursor.getMonth() ? 'is-outside ' : ''}${selected ? 'is-selected ' : ''}${between ? 'is-between' : ''}`} onKeyDown={(event) => handleDayKeyDown(event, day)} onClick={() => selectDay(day)}>{day.getDate()}</button> })}</div>
       <small>Seleccionando: {field === 'from' ? 'inicio' : 'fin'} del período</small>
-    </div>, document.body)}
+    </dialog>, document.body)}
   </div>
 }
