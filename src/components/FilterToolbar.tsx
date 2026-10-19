@@ -126,6 +126,7 @@ export default function FilterToolbar({
   filterReview,
   setFilterReview,
   statusCounts,
+  loadedLifecycles,
   repos,
   allPrs,
   resultCount,
@@ -138,6 +139,7 @@ export default function FilterToolbar({
   filterReview: ReviewFilter
   setFilterReview: (value: ReviewFilter) => void
   statusCounts: Record<LifecycleFilter, number>
+  loadedLifecycles: Set<LifecycleFilter>
   repos: RepoConfig[]
   allPrs: PullRequest[]
   resultCount: number
@@ -153,7 +155,7 @@ export default function FilterToolbar({
   const lifecycleOptions = (Object.keys(lifecycleFilterLabels) as LifecycleFilter[]).map((value) => ({
     value,
     label: lifecycleFilterLabels[value],
-    count: statusCounts[value],
+    count: loadedLifecycles.has(value) ? statusCounts[value] : undefined,
   }))
   const repositoryOptions: FilterOption[] = [
     { value: 'all', label: 'Todos', count: allPrs.length },

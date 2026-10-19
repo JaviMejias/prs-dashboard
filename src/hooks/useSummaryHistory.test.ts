@@ -85,7 +85,7 @@ describe('summary query lifecycle', () => {
     const saved = await cache.fetchQuery(options)
     fetchMock.mockRejectedValue(new Error('offline'))
     await cache.invalidateQueries({ queryKey: options.queryKey, refetchType: 'none' })
-    await expect(cache.fetchQuery(options)).rejects.toThrow('offline')
+    await expect(cache.fetchQuery(options)).rejects.toThrow('No se pudo recibir una respuesta válida')
     expect(cache.getQueryData(options.queryKey)).toEqual(saved)
     expect(readSummaryMonth(summaryScope(session), repo, september)?.pullRequests).toEqual(saved.pullRequests)
   })

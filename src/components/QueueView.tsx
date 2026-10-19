@@ -12,6 +12,7 @@ import {
 import FilterToolbar from './FilterToolbar'
 import PullRequestRecord from './PullRequestRecord'
 import { pullRequestKey } from '../lib/dashboard'
+import type { RepositorySyncError } from '../hooks/usePullRequestQueue'
 import type { LifecycleFilter, ReviewFilter } from '../lib/dashboard'
 import type { GitWorkflowSettings, PullRequest, RepoConfig, Session } from '../types'
 
@@ -65,10 +66,10 @@ function EmptyQueue({ repos, filterLifecycle, filterReview, hasLoadError, onRese
   return <div className="empty-state" role="status"><span className="empty-icon"><SlidersHorizontal size={24} /></span><span className="empty-kicker">Sin coincidencias</span><h3>No hay resultados con estos filtros</h3><p>La información sigue disponible; prueba con otra combinación.</p><button type="button" className="button button-secondary" onClick={onReset}>Restablecer filtros</button></div>
 }
 
-function QueueStatus({ errorCount, allRepositoriesFailed, allPrs, onRetry, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress }: {
+function QueueStatus({ errorCount, repositoryErrors, allRepositoriesFailed, onRetry, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress }: {
   errorCount: number
+  repositoryErrors: RepositorySyncError[]
   allRepositoriesFailed: boolean
-  allPrs: PullRequest[]
   onRetry: () => void
   initialLoading: boolean
   loadingIsSlow: boolean
@@ -78,7 +79,7 @@ function QueueStatus({ errorCount, allRepositoriesFailed, allPrs, onRetry, initi
   loadingProgress: number
 }) {
   return <>
-    {errorCount > 0 && allPrs.length > 0 && <div className="error-banner" role="alert"><span><CircleAlert size={18} /></span><div><strong>{allRepositoriesFailed ? 'No pudimos conectar con Bitbucket' : errorCount === 1 ? '1 repositorio no pudo actualizarse' : `${errorCount} repositorios no pudieron actualizarse`}</strong><p>Conservamos la información disponible. Revisa tus credenciales o intenta nuevamente.</p></div><button type="button" className="button button-secondary" onClick={onRetry}>Reintentar</button></div>}
+    {errorCount > 0 && <div className="error-banner" role="alert"><span><CircleAlert size={18} /></span><div><strong>{allRepositoriesFailed ? 'No pudimos completar la sincronización' : errorCount === 1 ? '1 repositorio no pudo actualizarse' : `${errorCount} repositorios no pudieron actualizarse`}</strong><p>Conservamos la información disponible.</p><ul className="sync-error-details">{repositoryErrors.map((error) => <li key={`${error.repository}-${error.state}`}><strong>{error.repository}</strong><span>{error.message}</span></li>)}</ul></div><button type="button" className="button button-secondary" disabled={!isOnline} onClick={onRetry}>Reintentar</button></div>}
     {initialLoading && <div className={`loading-status${loadingIsSlow ? ' is-slow' : ''}${!isOnline ? ' is-offline' : ''}`} role="status" aria-live="polite"><span className="loading-status-icon">{isOnline ? <RefreshCw className="spin" size={18} /> : <WifiOff size={18} />}</span><span><strong>{!isOnline ? 'Sin conexión a internet' : loadingIsSlow ? 'Bitbucket está tardando un poco' : 'Preparando tu cola'}</strong><small>{!isOnline ? 'La sincronización continuará cuando recuperes la conexión.' : loadingIsSlow ? `${fetchedRepositories} de ${repositoryCount} repositorios listos · seguimos intentando.` : `${fetchedRepositories} de ${repositoryCount} repositorios sincronizados`}</small></span><span className="loading-progress" role="progressbar" aria-label="Repositorios sincronizados" aria-valuemin={0} aria-valuemax={repositoryCount} aria-valuenow={fetchedRepositories}><i style={{ width: `${loadingProgress}%` }} /></span></div>}
   </>
 }
@@ -109,7 +110,7 @@ function QueueResults({ visiblePrs, sortedPrs, repos, session, highlightedPrKey,
     <div className="queue-surface">
       <div className="queue-columns" aria-hidden="true"><span>Pull request · relevo</span><span>Actividad QA</span><span>Acciones</span></div>
       <div className="pr-list" aria-busy={initialLoading && !allPrs.length}>
-        <AnimatePresence mode="popLayout">{visiblePrs.map((pr) => <PullRequestRecord key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenSettings={onOpenPreparation} />)}</AnimatePresence>
+        <AnimatePresence mode="popLayout">{visiblePrs.map((pr) => <PullRequestRecord technicalStatsEnabled={!fetching && !initialLoading} key={`${pr.repo.workspace}/${pr.repo.repo}-${pr.id}`} pr={pr} session={session} highlighted={pullRequestKey(pr) === highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenSettings={onOpenPreparation} />)}</AnimatePresence>
         {initialLoading && !allPrs.length && <><PullRequestSkeleton /><PullRequestSkeleton /><PullRequestSkeleton /></>}
         {!initialLoading && !sortedPrs.length && <EmptyQueue repos={repos} filterLifecycle={filterLifecycle} filterReview={filterReview} hasLoadError={hasLoadError} onReset={onReset} onConfigure={onOpenPreparation} onRetry={onRetry} />}
       </div>
@@ -140,6 +141,8 @@ type QueueViewProps = {
   highlightedPrKey: string | null
   visibleLimit: number
   errorCount: number
+  repositoryErrors: RepositorySyncError[]
+  loadedLifecycles: Set<LifecycleFilter>
   allRepositoriesFailed: boolean
   fetching: boolean
   initialLoading: boolean
@@ -172,6 +175,8 @@ export default function QueueView({
   highlightedPrKey,
   visibleLimit,
   errorCount,
+  repositoryErrors,
+  loadedLifecycles,
   allRepositoriesFailed,
   fetching,
   initialLoading,
@@ -181,12 +186,12 @@ export default function QueueView({
   repositoryCount,
   loadingProgress,
 }: QueueViewProps) {
-  const hasLoadError = errorCount > 0 && allPrs.length === 0
+  const hasLoadError = errorCount > 0
 
   return <>
-    <FilterToolbar filterLifecycle={filterLifecycle} setFilterLifecycle={setFilterLifecycle} filterRepo={filterRepo} setFilterRepo={setFilterRepo} filterReview={filterReview} setFilterReview={setFilterReview} statusCounts={statusCounts} repos={repos} allPrs={allPrs} resultCount={sortedPrs.length} onReset={onReset} />
+    <FilterToolbar loadedLifecycles={loadedLifecycles} filterLifecycle={filterLifecycle} setFilterLifecycle={setFilterLifecycle} filterRepo={filterRepo} setFilterRepo={setFilterRepo} filterReview={filterReview} setFilterReview={setFilterReview} statusCounts={statusCounts} repos={repos} allPrs={allPrs} resultCount={sortedPrs.length} onReset={onReset} />
 
-    <QueueStatus errorCount={errorCount} allRepositoriesFailed={allRepositoriesFailed} allPrs={allPrs} onRetry={onRetry} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} />
+    <QueueStatus errorCount={errorCount} repositoryErrors={repositoryErrors} allRepositoriesFailed={allRepositoriesFailed} onRetry={onRetry} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} />
     <QueueResults visiblePrs={visiblePrs} sortedPrs={sortedPrs} repos={repos} session={session} highlightedPrKey={highlightedPrKey} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenPreparation={onOpenPreparation} initialLoading={initialLoading} allPrs={allPrs} filterLifecycle={filterLifecycle} filterReview={filterReview} hasLoadError={hasLoadError} onReset={onReset} onRetry={onRetry} visibleLimit={visibleLimit} onLoadMore={onLoadMore} fetching={fetching} isOnline={isOnline} />
   </>
 }

@@ -5,10 +5,14 @@ import { formatDate } from '../lib/dashboard'
 import { sessionCacheKey } from '../lib/queryIdentity'
 import type { PullRequest, Session } from '../types'
 
-export default function PullRequestStats({ pr, session }: { pr: PullRequest; session: Session }) {
+export default function PullRequestStats({ pr, session, enabled = true }: { pr: PullRequest; session: Session; enabled?: boolean }) {
   const query = useQuery({
     queryKey: ['stats', sessionCacheKey(session), pr.repo.workspace, pr.repo.repo, pr.id, pr.updated_on],
-    queryFn: () => getStats(pr, session),
+    queryFn: ({ signal }) => getStats(pr, session, signal),
+    enabled,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: false,
   })
   const compactCreatedDate = new Date(pr.created_on).toLocaleDateString('es-CL', {
     day: '2-digit',
@@ -21,6 +25,7 @@ export default function PullRequestStats({ pr, session }: { pr: PullRequest; ses
       <span className="stat-item"><CalendarDays size={15} /><span>Creado</span><strong><span className="date-full">{formatDate(pr.created_on)}</span><span className="date-compact">{compactCreatedDate}</span></strong></span>
       <span className="stat-item"><MessageCircle size={15} /><strong>{pr.comment_count || 0}</strong><span>comentarios</span></span>
       {query.isLoading && <span className="stats-state stats-loading" role="status"><span className="inline-loader" /><span>Cargando actividad técnica…</span><span className="stats-loading-bars" aria-hidden="true"><i /><i /><i /><i /></span></span>}
+      {!enabled && !query.data && <span className="stats-state">Datos técnicos pendientes de sincronización.</span>}
       {query.isError && <span className="stats-state stats-error"><CircleSlash2 size={15} /> No se pudieron cargar los datos técnicos.</span>}
       {query.data && <>
         <span className="stat-item"><GitCommitHorizontal size={15} /><strong>{query.data.commits}</strong><span>commits</span></span>
