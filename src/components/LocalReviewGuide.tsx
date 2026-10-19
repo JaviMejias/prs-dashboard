@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { ChevronDown, Copy, FileText, GitBranch, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
@@ -67,6 +67,7 @@ export default function LocalReviewGuide({ pr, session, settings, onSettingsChan
   const reveal = reduceMotion ? { y: 0, duration: 0.08 } : { y: -4, duration: 0.18 }
   const [open, setOpen] = useState(false)
   const [contextOpen, setContextOpen] = useState(false)
+  const closeContext = useCallback(() => setContextOpen(false), [])
   const [additionalContext, setAdditionalContext] = useState('')
   const [commentScope, setCommentScope] = useState<ReviewCommentScope>('recent')
   const instruction = buildGitReviewInstruction(pr, session, settings)
@@ -111,6 +112,6 @@ export default function LocalReviewGuide({ pr, session, settings, onSettingsChan
         <ReviewCopyFeedback state={copyState} unavailable={unavailable} />
       </m.div>}
     </AnimatePresence>
-    <Suspense fallback={<p role="status">Abriendo vista previa…</p>}><AnimatePresence>{contextOpen && <ReviewContextDialog pr={pr} session={session} instruction={instruction} additionalContext={additionalContext} commentScope={commentScope} onScopeChange={setCommentScope} onClose={() => setContextOpen(false)} />}</AnimatePresence></Suspense>
+    <Suspense fallback={<p role="status">Abriendo vista previa…</p>}><AnimatePresence>{contextOpen && <ReviewContextDialog pr={pr} session={session} instruction={instruction} additionalContext={additionalContext} commentScope={commentScope} onScopeChange={setCommentScope} onClose={closeContext} />}</AnimatePresence></Suspense>
   </div>
 }

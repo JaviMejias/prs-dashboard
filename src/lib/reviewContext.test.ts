@@ -77,6 +77,20 @@ describe('ReviewContext', () => {
     expect(buildReviewContext(oldPr, session, { ...emptyDetails, unavailable: ['activity'] }).reviewState.reviewDate).toBe('2026-09-14T10:30:00Z')
   })
 
+  it('keeps the follow-up date while waiting and does not mark earlier replies as later than participation', () => {
+    const reviewDate = '2026-09-14T11:30:00Z'
+    const waitingPr = { ...pr, updated_on: reviewDate, participants: [{ user: { uuid: session.uuid, display_name: session.displayName }, state: 'changes_requested' as const, participated_on: reviewDate }] }
+    const context = buildReviewContext(waitingPr, session, { ...emptyDetails, comments: [
+      { id: 1, authorUuid: session.uuid, content: 'Original', date: '2026-09-14T10:00:00Z' },
+      { id: 2, parentId: 1, authorUuid: '{author}', content: 'Previous answer', date: '2026-09-14T11:00:00Z' },
+    ] })
+    expect(context.reviewState).toMatchObject({ status: 'waiting', isRevisit: true, reviewDate })
+    expect(context.commentReplies).toHaveLength(1)
+    expect(context.pendingCommentReplies).toHaveLength(0)
+    expect(buildCodexPreparation(context)).toContain(`Última participación tuya: ${reviewDate}`)
+    expect(buildCodexPreparation(context)).not.toContain('Última participación tuya: no registrada')
+  })
+
   it('exports a self-contained local comparison with description, manual notes and honest sync status', () => {
     const describedPr = { ...pr, description: 'Validar descuentos por país.\nNo romper redondeo.' }
     const context = buildReviewContext(describedPr, session, emptyDetails)

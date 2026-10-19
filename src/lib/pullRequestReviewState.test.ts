@@ -23,6 +23,37 @@ function buildPullRequest(activity: PullRequestActivity[]): PullRequest {
 const myReview = { pull_request: { id: 14913 }, comment: { created_on: reviewDate, user: reviewer } }
 
 describe('getReviewDecision', () => {
+  it('keeps personal participation and commit evidence while waiting for the developer', () => {
+    const pr = buildPullRequest([
+      { update: { date: '2026-09-16T11:00:00Z', author, source: { commit: { hash: 'baseline' } } } },
+      myReview,
+    ])
+    expect(getReviewDecision(pr, reviewer.uuid, reviewer.display_name)).toMatchObject({
+      status: 'waiting', reason: 'waiting_for_developer', confidence: 'confirmed', reviewDate,
+      reviewedCommit: 'baseline', latestCommit: 'baseline',
+    })
+  })
+
+  it('preserves a participation date from the participant when activity is missing', () => {
+    const pr = { ...buildPullRequest([]), updated_on: reviewDate }
+    expect(getReviewDecision(pr, reviewer.uuid, reviewer.display_name)).toMatchObject({ status: 'waiting', reviewDate })
+  })
+
+  it('keeps the current user date, not the blocking reviewer date, when another reviewer is waiting', () => {
+    const ownDate = '2026-09-16T14:00:00Z'
+    const pr = buildPullRequest([{ approval: { date: ownDate, user: { uuid: '{other}', display_name: 'Other QA' } } }])
+    const result = getReviewDecision(pr, '{other}', 'Other QA')
+    expect(result).toMatchObject({ status: 'waiting', reviewDate: ownDate })
+    expect(result.reviewDate).not.toBe(reviewDate)
+  })
+
+  it.each([[undefined, undefined], ['{unknown}', 'Unknown QA']])('does not borrow a waiting reviewer date without personal evidence (%s)', (uuid, name) => {
+    const result = getReviewDecision({ ...buildPullRequest([]), updated_on: reviewDate }, uuid, name)
+    expect(result.status).toBe('waiting')
+    expect(result.reviewDate).toBeUndefined()
+    expect(result.reviewedCommit).toBeUndefined()
+  })
+
   it('detects a developer commit even without an older commit baseline', () => {
     const pr = buildPullRequest([
       myReview,

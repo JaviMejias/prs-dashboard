@@ -170,15 +170,14 @@ export function getReviewDecision(pr: PullRequest, myUuid?: string, myDisplayNam
     const matchesReviewer = (user?: ActivityUser) => matchesActivityUser(user, participant)
     return !getReviewEvidence(pr, latestReviewDate(pr, matchesReviewer), matchesReviewer).hasNewActivity
   })
-  if (waitingForDeveloper) return decision('waiting', 'waiting_for_developer', 'confirmed')
-  if (!myUuid && !myDisplayName) return decision('unreviewed', 'reviewer_not_identified', 'unknown')
-
   const matchesUser = (user?: ActivityUser) => matchesIdentity(user, { uuid: myUuid, display_name: myDisplayName })
-  const participant = pr.participants?.find((item) => matchesUser(item.user))
   const reviewDate = latestReviewDate(pr, matchesUser)
+  const evidence = getReviewEvidence(pr, reviewDate, matchesUser)
+  if (waitingForDeveloper) return decision('waiting', 'waiting_for_developer', 'confirmed', { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit, latestDeveloperActivity: evidence.latestDeveloperActivity })
+  if (!myUuid && !myDisplayName) return decision('unreviewed', 'reviewer_not_identified', 'unknown')
+  const participant = pr.participants?.find((item) => matchesUser(item.user))
 
   if (!reviewDate) return decision('unreviewed', isFreshPullRequest(pr) ? 'new_pr' : 'no_review_recorded', isFreshPullRequest(pr) ? 'confirmed' : 'unknown')
-  const evidence = getReviewEvidence(pr, reviewDate, matchesUser)
   if (evidence.hasNewActivity) return decision('changes', evidence.reason, evidence.confidence, { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit, latestDeveloperActivity: evidence.latestDeveloperActivity })
   if (participant?.state === 'changes_requested') return decision('waiting', 'waiting_for_developer', evidence.confidence, { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit })
   return decision('current', evidence.reason, evidence.confidence, { reviewDate, reviewedCommit: evidence.reviewedCommit, latestCommit: evidence.latestCommit })

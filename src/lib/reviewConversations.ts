@@ -1,6 +1,7 @@
 import type { ReviewContext, ReviewContextComment } from '../types'
 
 export type ReviewCommentScope = 'recent' | 'all'
+export const reviewCommentScopeLabels = { recent: 'Últimos comentarios', all: 'Todo el historial' } as const
 type Identity = { uuid?: string; name?: string }
 
 export const REVIEW_ROUND_WINDOW_MINUTES = 5
@@ -52,17 +53,22 @@ export function selectReviewConversations(context: ReviewContext, scope: ReviewC
   return { comments: selected, omittedCount: comments.length - selected.length, fallback, roundStart }
 }
 
+export function canChooseReviewConversationScope(context: ReviewContext | null) {
+  return !context || context.unavailable.includes('comments') || selectReviewConversations(context).omittedCount > 0
+}
+
 export function reviewConversationSummary(context: ReviewContext, scope: ReviewCommentScope = 'recent', formatDate = (date: number) => new Date(date).toISOString()) {
   if (context.unavailable.includes('comments')) return ['No se pudieron cargar los comentarios; no se puede determinar si hay respuestas.']
+  if (!context.comments.length) return ['No se recibieron comentarios de Bitbucket.']
   const selection = selectReviewConversations(context, scope)
-  const summary = [scope === 'all'
-    ? `Historial completo: ${context.comments.length} comentarios recibidos.`
-    : selection.fallback
-      ? 'No se pudo delimitar una ronda con tu identidad y las fechas disponibles; se incluye todo el historial recibido.'
-      : selection.roundStart !== undefined
-        ? `Ronda reciente aproximada desde ${formatDate(selection.roundStart)}: observaciones propias hasta ${REVIEW_ROUND_WINDOW_MINUTES} minutos antes de la última y actividad posterior. Hilos relacionados completos.`
-        : 'No hay comentarios en la consulta de Bitbucket.']
-  summary.push(`${selection.comments.length} de ${context.comments.length} comentarios incluidos; ${selection.omittedCount} anteriores fuera de esta guía.${selection.omittedCount ? ' Omitir no significa resolver: puedes incluirlos con «Historial completo».' : ''}`)
+  const recentSelection = scope === 'recent' ? selection : selectReviewConversations(context)
+  const hasChoice = recentSelection.omittedCount > 0
+  let scopeSummary = `${context.comments.length} de ${context.comments.length} comentarios incluidos: todo el historial recibido.`
+  if (hasChoice && scope === 'all') scopeSummary = `${reviewCommentScopeLabels.all}: ${context.comments.length} comentarios recibidos.`
+  else if (hasChoice && selection.roundStart !== undefined) scopeSummary = `${reviewCommentScopeLabels.recent} (selección aproximada) desde ${formatDate(selection.roundStart)}: observaciones propias hasta ${REVIEW_ROUND_WINDOW_MINUTES} minutos antes de la última y actividad posterior. Hilos relacionados completos.`
+  const summary = [scopeSummary]
+  if (recentSelection.fallback) summary.push('No se pudo delimitar una ronda con tu identidad y las fechas disponibles; se incluye todo el historial recibido.')
+  if (hasChoice) summary.push(`${selection.comments.length} de ${context.comments.length} comentarios incluidos; ${selection.omittedCount} anteriores fuera de esta guía.${selection.omittedCount ? ` Omitir no significa resolver: puedes incluirlos con «${reviewCommentScopeLabels.all}».` : ''}`)
   const author = context.pullRequest.author
   if (hasIdentity(author)) {
     const selectedComments = new Set(selection.comments)
