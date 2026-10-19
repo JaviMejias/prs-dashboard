@@ -13,6 +13,7 @@ export function usePullRequestQueue(session: Session | null, repos: RepoConfig[]
       refetchInterval: PULL_REQUEST_POLL_INTERVAL_MS,
       refetchIntervalInBackground: true,
       staleTime: 10_000,
+      retry: false,
     })) : [],
   }) as UseQueryResult<PullRequest[], Error>[]
 
