@@ -14,6 +14,16 @@ export type GitReviewInstruction = {
   targetBranch: string
   isRevisit: boolean
   isComplete: boolean
+  targetCountry: string
+  remotesConfirmed: boolean
+}
+
+export function reviewTargetCountry(branch?: string) {
+  const target = normalize(branch)
+  if (!target || target === '?') return 'País no determinado: falta la rama destino'
+  if (target.startsWith('propyme') || target.startsWith('pine')) return 'Chile (según la rama destino)'
+  if (target === 'peru' || target.startsWith('peru_') || target.startsWith('peru/')) return 'Perú (según la rama destino)'
+  return 'Perú (inferido por la regla del proyecto; confirmar si es una excepción)'
 }
 
 const repositoryName = (pr: PullRequest, side: 'source' | 'destination') => {
@@ -41,13 +51,11 @@ export function buildGitReviewInstruction(pr: PullRequest, session: Session, set
   const targetBranch = pr.destination?.branch?.name || '?'
   const identity = displayName(session.displayName, session.email)
   const isRevisit = Boolean(getReviewerState(pr, identity, session.uuid))
-  const prefix = isRevisit ? 'Volvemos a revisar este PR' : 'Revisemos este PR'
-  const source = sourceRemote || 'remoto-origen'
-  const target = targetRemote || 'remoto-destino'
-  const sync = settings.syncRemotesConfirmed ? ' Remotos actualizados.' : ''
+  const prefix = isRevisit ? 'Seguimiento' : 'Revisión sin antecedente personal registrado'
+  const targetCountry = reviewTargetCountry(targetBranch)
 
   return {
-    text: `${prefix} desde el remoto ${source}, rama ${sourceBranch}, hacia el remoto ${target}, rama ${targetBranch}.${sync}`,
+    text: `${prefix} del PR #${pr.id}: ${pr.title}. Destino: ${targetCountry}. ${sourceRemote || 'Remoto origen sin configurar'}/${sourceBranch} → ${targetRemote || 'Remoto destino sin configurar'}/${targetBranch}. Al copiar se incluyen descripción, cambios y conversaciones de Bitbucket.`,
     sourceRemote,
     targetRemote,
     sourceRepository,
@@ -56,6 +64,8 @@ export function buildGitReviewInstruction(pr: PullRequest, session: Session, set
     targetBranch,
     isRevisit,
     isComplete: Boolean(sourceRemote && targetRemote && sourceBranch !== '?' && targetBranch !== '?'),
+    targetCountry,
+    remotesConfirmed: settings.syncRemotesConfirmed,
   }
 }
 

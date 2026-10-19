@@ -1,43 +1,51 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useQuery } from '@tanstack/react-query'
-import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { AlertTriangle, BookOpen, Check, Clipboard, Code2, FileCode2, GitCommitHorizontal, MessageCircle, RefreshCw, X } from 'lucide-react'
-import { toast } from 'sonner'
 import { useModalDialog } from '../hooks/useDismissableLayer'
-import { getReviewContextDetails } from '../lib/bitbucket'
-import { buildApplicableRulesMarkdown, buildCodexPreparation, buildReviewContext, buildReviewContextJson, buildReviewContextMarkdown } from '../lib/reviewContext'
-import { sessionCacheKey } from '../lib/queryIdentity'
-import { resolveRulepacksForRepository } from '../lib/rulepacks'
-import { getCustomRules } from '../lib/storage'
-import type { PullRequest, Session } from '../types'
+import { useReviewContextExport } from '../hooks/useReviewContextExport'
+import type { GitReviewInstruction } from '../lib/gitWorkflow'
+import type { PullRequest, ReviewContext, Session } from '../types'
 
-export default function ReviewContextDialog({ pr, session, onClose }: { pr: PullRequest; session: Session; onClose: () => void }) {
+function ReviewContextPreview({ context, codexPreparation, json }: { context: ReviewContext; codexPreparation: string; json: string }) {
+  const commits = context.unavailable.includes('commits') ? '—' : context.commits.length
+  const files = context.unavailable.includes('changed files') ? '—' : context.changedFiles.length
+  const comments = context.unavailable.includes('comments') ? '—' : context.comments.length
+  const diffstat = context.unavailable.includes('changed files') ? 'No disponible' : `+${context.diffstat.additions} / -${context.diffstat.deletions}`
+  return <>
+    <div className="context-summary" aria-label="Resumen del contexto">
+      <span><GitCommitHorizontal size={15} /><strong>{commits}</strong> commits</span>
+      <span><FileCode2 size={15} /><strong>{files}</strong> archivos</span>
+      <span><MessageCircle size={15} /><strong>{comments}</strong> comentarios</span>
+      <span><Code2 size={15} /><strong>{diffstat}</strong> diffstat</span>
+      <span><BookOpen size={15} /><strong>{context.rules.length}</strong> reglas</span>
+    </div>
+    <section className="context-rulepacks" aria-labelledby="context-rulepacks-title">
+      <div className="context-section-heading"><BookOpen size={17} /><div><h3 id="context-rulepacks-title">Reglas de revisión aplicables</h3><p>Reglas explícitas de la biblioteca local, ordenadas para este repositorio.</p></div></div>
+      {context.rules.length ? context.rules.map((rule) => <details className="context-rulepack" key={rule.reference} open><summary><strong>{rule.name}</strong><span>{rule.category}{rule.version ? ` · ${rule.version}` : ''}</span></summary><p>{rule.description}</p><pre>{rule.content}</pre></details>) : <p className="context-no-rulepacks">Sin reglas configuradas para este repositorio.</p>}
+    </section>
+    <details className="context-preview" open>
+      <summary>Vista previa de la guía para Codex</summary>
+      <pre>{codexPreparation}</pre>
+    </details>
+    <details className="context-json-preview">
+      <summary>Ver JSON estructurado</summary>
+      <pre>{json}</pre>
+    </details>
+  </>
+}
+
+function ReviewContextWarning({ unavailable }: { unavailable: string[] }) {
+  if (!unavailable.length) return null
+  return <div className="context-warning" role="status"><AlertTriangle size={16} /><span>No disponible: {unavailable.join(', ')}. {unavailable.includes('comments') ? 'Actualiza el contexto para recuperar las conversaciones antes de copiar la guía para Codex.' : 'Las limitaciones se incluyen en el texto copiado.'}</span></div>
+}
+
+export default function ReviewContextDialog({ pr, session, instruction, additionalContext, onClose }: { pr: PullRequest; session: Session; instruction: GitReviewInstruction; additionalContext: string; onClose: () => void }) {
   const dialogRef = useRef<HTMLElement>(null)
   const reduceMotion = useReducedMotion()
   const close = useCallback(onClose, [onClose])
   useModalDialog(true, dialogRef, close)
-  const query = useQuery({
-    queryKey: ['review-context', sessionCacheKey(session), pr.repo.workspace, pr.repo.repo, pr.id, pr.updated_on],
-    queryFn: () => getReviewContextDetails(pr, session),
-    staleTime: 60_000,
-  })
-  const customRules = useMemo(() => getCustomRules(), [])
-  const resolvedRulepacks = useMemo(() => resolveRulepacksForRepository(pr.repo, customRules), [customRules, pr.repo])
-  const context = useMemo(() => query.data ? buildReviewContext(pr, session, { ...query.data, unavailable: [...query.data.unavailable, ...resolvedRulepacks.unavailable] }, resolvedRulepacks.rulepacks, resolvedRulepacks.rules) : null, [pr, query.data, resolvedRulepacks, session])
-  const markdown = context ? buildReviewContextMarkdown(context) : ''
-  const json = context ? buildReviewContextJson(context) : ''
-  const rulesMarkdown = context ? buildApplicableRulesMarkdown(context) : ''
-  const codexPreparation = context ? buildCodexPreparation(context) : ''
-
-  const copy = async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value)
-      toast.success(`${label} copiado`, { description: 'Ya puedes pegarlo directamente en Codex.' })
-    } catch {
-      toast.error('No se pudo copiar el contexto', { description: 'Revisa los permisos del portapapeles del navegador.' })
-    }
-  }
+  const { query, context, markdown, json, rulesMarkdown, codexPreparation, canCopy, canCopyGuide, copying, copyError, copy } = useReviewContextExport(pr, session, instruction, additionalContext)
 
   return createPortal((
     <div className="dialog-backdrop review-context-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -61,33 +69,17 @@ export default function ReviewContextDialog({ pr, session, onClose }: { pr: Pull
           {query.isLoading && <div className="context-loading" role="status"><RefreshCw size={20} className="spin" /><strong>Construyendo contexto</strong><span>Cargando commits, archivos, comentarios y actividad de este PR…</span></div>}
           {query.isError && <div className="context-error" role="alert"><AlertTriangle size={18} /><span><strong>No pudimos cargar el contexto detallado</strong><small>Puedes reintentar sin afectar la cola.</small></span><button type="button" className="button button-secondary" onClick={() => void query.refetch()}><RefreshCw size={15} /> Reintentar</button></div>}
           {context && <>
-            {context.unavailable.length > 0 && <div className="context-warning" role="status"><AlertTriangle size={16} /><span>No disponible: {context.unavailable.join(', ')}. El resto del contexto sí puede copiarse.</span></div>}
-            <div className="context-summary" aria-label="Resumen del contexto">
-              <span><GitCommitHorizontal size={15} /><strong>{context.commits.length}</strong> commits</span>
-              <span><FileCode2 size={15} /><strong>{context.changedFiles.length}</strong> archivos</span>
-              <span><MessageCircle size={15} /><strong>{context.comments.length}</strong> comentarios</span>
-              <span><Code2 size={15} /><strong>+{context.diffstat.additions} / -{context.diffstat.deletions}</strong> diffstat</span>
-              <span><BookOpen size={15} /><strong>{context.rules.length}</strong> reglas</span>
-            </div>
-            <section className="context-rulepacks" aria-labelledby="context-rulepacks-title">
-              <div className="context-section-heading"><BookOpen size={17} /><div><h3 id="context-rulepacks-title">Applicable review rules</h3><p>Reglas explícitas de la biblioteca local, ordenadas para este repositorio.</p></div></div>
-              {context.rules.length ? context.rules.map((rule) => <details className="context-rulepack" key={rule.reference} open><summary><strong>{rule.name}</strong><span>{rule.category}{rule.version ? ` · ${rule.version}` : ''}</span></summary><p>{rule.description}</p><pre>{rule.content}</pre></details>) : <p className="context-no-rulepacks">Sin reglas configuradas para este repositorio.</p>}
-            </section>
-            <details className="context-preview" open>
-              <summary>Vista previa Markdown</summary>
-              <pre>{markdown}</pre>
-            </details>
-            <details className="context-json-preview">
-              <summary>Ver JSON estructurado</summary>
-              <pre>{json}</pre>
-            </details>
+            <button type="button" className="button button-secondary" disabled={query.isFetching} aria-busy={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={15} className={query.isFetching ? 'spin' : ''} /> Actualizar contexto</button>
+            <ReviewContextWarning unavailable={context.unavailable} />
+            {copyError && <div className="context-error" role="alert">{copyError}</div>}
+            <ReviewContextPreview context={context} codexPreparation={codexPreparation} json={json} />
           </>}
         </div>
         <footer className="settings-footer review-context-footer">
-          <button type="button" className="button button-secondary" onClick={() => void copy(rulesMarkdown, 'Reglas')} disabled={!context}><BookOpen size={16} /> Copiar reglas</button>
-          <button type="button" className="button button-primary" onClick={() => void copy(codexPreparation, 'Preparación para Codex')} disabled={!context}><Code2 size={16} /> Preparar para Codex</button>
-          <button type="button" className="button button-secondary" onClick={() => void copy(json, 'JSON')} disabled={!context}><Code2 size={16} /> Copiar JSON</button>
-          <button type="button" className="button button-secondary" onClick={() => void copy(markdown, 'Contexto Markdown')} disabled={!context}><Clipboard size={16} /> Copiar contexto</button>
+          <button type="button" className="button button-secondary" onClick={() => void copy(rulesMarkdown, 'Reglas')} disabled={!canCopy}><BookOpen size={16} /> Copiar reglas</button>
+          <button type="button" className="button button-primary" onClick={() => void copy(codexPreparation, 'Guía para Codex')} disabled={!canCopyGuide} aria-busy={copying}><Code2 size={16} /> Copiar para Codex</button>
+          <button type="button" className="button button-secondary" onClick={() => void copy(json, 'JSON')} disabled={!canCopy}><Code2 size={16} /> Copiar JSON</button>
+          <button type="button" className="button button-secondary" onClick={() => void copy(markdown, 'Contexto Markdown')} disabled={!canCopy}><Clipboard size={16} /> Copiar contexto</button>
           <button type="button" className="button button-ghost" onClick={onClose}><Check size={16} /> Cerrar</button>
         </footer>
       </m.section>

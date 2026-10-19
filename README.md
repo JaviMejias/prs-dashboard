@@ -193,8 +193,25 @@ La vista Preparar agrupa la configuración del trabajo local:
 
 El contexto preparado puede incluir repositorio, ramas, estado, autor, fechas,
 commits, archivos modificados, diffstat, comentarios, actividad y reglas
-aplicables. Preparar para Codex genera Markdown para copiar manualmente; no
+aplicables. Copiar para Codex genera Markdown para copiar manualmente; no
 ejecuta Codex, Git ni comandos externos.
+
+En Revisión local, `Copiar para Codex` descarga bajo demanda el contexto de ese
+PR: descripción, cambios y conversaciones, con las respuestas directas y
+anidadas a tus observaciones. `Ver contexto` permite previsualizar la misma
+guía y actualizar sus datos. Si fallan los comentarios, la copia combinada se
+bloquea para no omitir silenciosamente las respuestas del desarrollador.
+
+La guía identifica Chile cuando el destino empieza por `propyme` o `pine`,
+Perú para `peru`, y Perú inferido para los demás destinos, advirtiendo posibles
+excepciones. Incluye aliases locales, repositorios y ramas, y distingue una
+declaración de remotos actualizados de una comprobación automática.
+
+El campo opcional Contexto adicional permite pegar respuestas de WhatsApp o
+recordar observaciones anteriores. No conecta con WhatsApp ni guarda la nota:
+se mantiene al contraer la guía, pero se pierde al salir de la cola o recargar.
+Los comentarios y notas se entregan a Codex como datos a contrastar con el
+código, no como evidencia de que el problema ya se resolvió.
 
 ## Rule Library y rulepacks
 
@@ -222,8 +239,11 @@ necesites conservar la trazabilidad de una regla anterior.
 La aplicación puede mostrar una guía como:
 
 ~~~text
-Revisemos este PR desde el remoto cosores, rama feature/mi-cambio, hacia el
-remoto origin, rama propyme_production. Remotos actualizados.
+Revisión del PR #1886: KON-1886 Validar descuentos.
+Origen: repositorio del autor, remoto cosores, rama KON-1886.
+Base: repositorio del equipo, remoto origin, rama propyme_production.
+Destino: Chile (según la rama destino).
+Incluye descripción, commits, archivos, comentarios y seguimiento de respuestas.
 ~~~
 
 Es una guía para el usuario. La aplicación no ejecuta git fetch, no crea

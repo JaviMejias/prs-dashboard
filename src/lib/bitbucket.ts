@@ -237,48 +237,58 @@ const reviewContextFields = {
 
 const displayActivityUser = (user?: ActivityUser) => user?.display_name || undefined
 
-export async function getReviewContextDetails(pr: PullRequest, session: Session): Promise<ReviewContextDetails> {
-  const base = `${API}/repositories/${encodeURIComponent(pr.repo.workspace)}/${encodeURIComponent(pr.repo.repo)}/pullrequests/${pr.id}`
-  const load = async <T>(url: string, label: string) => {
-    try { return { value: await allPages<T>(url, session), error: undefined } }
-    catch { return { value: [] as T[], error: label } }
-  }
-  const [commitsResult, filesResult, commentsResult, activityResult] = await Promise.all([
-    load<BitbucketCommit>(`${base}/commits?pagelen=50&fields=${reviewContextFields.commits}`, 'commits'),
-    load<BitbucketDiffstat>(`${base}/diffstat?pagelen=50&fields=${reviewContextFields.files}`, 'changed files'),
-    load<BitbucketComment>(`${base}/comments?pagelen=50&fields=${reviewContextFields.comments}`, 'comments'),
-    load<PullRequestActivity>(`${base}/activity?pagelen=50&fields=${reviewContextFields.activity}`, 'activity'),
-  ])
+export async function getReviewContextDetails(pr: PullRequest, session: Session, signal?: AbortSignal): Promise<ReviewContextDetails> {
+  const controller = new AbortController()
+  const cancel = () => controller.abort(signal?.reason)
+  signal?.addEventListener('abort', cancel, { once: true })
+  if (signal?.aborted) cancel()
+  const timer = setTimeout(() => controller.abort(), 90_000)
+  try {
+    const base = `${API}/repositories/${encodeURIComponent(pr.repo.workspace)}/${encodeURIComponent(pr.repo.repo)}/pullrequests/${pr.id}`
+    const load = async <T>(url: string, label: string) => {
+      try { return { value: await allPages<T>(url, session, 100, controller.signal), error: undefined } }
+      catch { return { value: [] as T[], error: label } }
+    }
+    const [commitsResult, filesResult, commentsResult, activityResult] = await Promise.all([
+      load<BitbucketCommit>(`${base}/commits?pagelen=50&fields=${reviewContextFields.commits}`, 'commits'),
+      load<BitbucketDiffstat>(`${base}/diffstat?pagelen=50&fields=${reviewContextFields.files}`, 'changed files'),
+      load<BitbucketComment>(`${base}/comments?pagelen=50&fields=${reviewContextFields.comments}`, 'comments'),
+      load<PullRequestActivity>(`${base}/activity?pagelen=50&fields=${reviewContextFields.activity}`, 'activity'),
+    ])
 
-  const comments = commentsResult.value.filter((comment) => !comment.deleted).map((comment): ReviewContextComment => ({
-    id: comment.id,
-    parentId: comment.parent?.id,
-    authorUuid: comment.user?.uuid,
-    author: displayActivityUser(comment.user),
-    date: comment.updated_on || comment.created_on,
-    content: comment.content?.raw || '',
-    path: comment.inline?.path,
-    line: comment.inline?.to || comment.inline?.from,
-    url: comment.links?.html?.href,
-  })).filter((comment) => comment.content.length > 0)
-  const files = filesResult.value.map((file): ReviewContextFile => ({
-    path: file.new?.path || file.old?.path || 'Ruta desconocida',
-    status: file.status,
-    additions: file.lines_added,
-    deletions: file.lines_removed,
-    changeType: file.new?.type || file.old?.type,
-  }))
-  const commits = commitsResult.value.map((commit): ReviewContextCommit => ({
-    hash: commit.hash || 'Hash desconocido',
-    message: commit.message?.split('\n')[0] || 'Mensaje no disponible',
-    author: commit.author?.raw,
-    date: commit.date,
-    url: commit.links?.html?.href,
-  }))
-  const unavailable = [commitsResult, filesResult, commentsResult, activityResult]
-    .map((result) => result.error)
-    .filter((label): label is string => Boolean(label))
-  const additions = files.reduce((total, file) => total + (file.additions || 0), 0)
-  const deletions = files.reduce((total, file) => total + (file.deletions || 0), 0)
-  return { commits, changedFiles: files, comments, diffstat: { files: files.length, additions, deletions, totalChanges: additions + deletions }, activity: activityResult.value, unavailable }
+    const comments = commentsResult.value.filter((comment) => !comment.deleted).map((comment): ReviewContextComment => ({
+      id: comment.id,
+      parentId: comment.parent?.id,
+      authorUuid: comment.user?.uuid,
+      author: displayActivityUser(comment.user),
+      date: comment.updated_on || comment.created_on,
+      content: comment.content?.raw || '',
+      path: comment.inline?.path,
+      line: comment.inline?.to || comment.inline?.from,
+      url: comment.links?.html?.href,
+    })).filter((comment) => comment.content.length > 0)
+    const files = filesResult.value.map((file): ReviewContextFile => ({
+      path: file.new?.path || file.old?.path || 'Ruta desconocida',
+      status: file.status,
+      additions: file.lines_added,
+      deletions: file.lines_removed,
+      changeType: file.new?.type || file.old?.type,
+    }))
+    const commits = commitsResult.value.map((commit): ReviewContextCommit => ({
+      hash: commit.hash || 'Hash desconocido',
+      message: commit.message?.split('\n')[0] || 'Mensaje no disponible',
+      author: commit.author?.raw,
+      date: commit.date,
+      url: commit.links?.html?.href,
+    }))
+    const unavailable = [commitsResult, filesResult, commentsResult, activityResult]
+      .map((result) => result.error)
+      .filter((label): label is string => Boolean(label))
+    const additions = files.reduce((total, file) => total + (file.additions || 0), 0)
+    const deletions = files.reduce((total, file) => total + (file.deletions || 0), 0)
+    return { commits, changedFiles: files, comments, diffstat: { files: files.length, additions, deletions, totalChanges: additions + deletions }, activity: activityResult.value, unavailable }
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', cancel)
+  }
 }

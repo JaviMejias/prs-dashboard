@@ -26,6 +26,7 @@
 | Select/Listbox | Native `<select>` | `AuthorsView` + browser popup | selección nativa | teclado + viewport |
 | Toast | `sonner` en `src/main.tsx` | `src/main.tsx` | success / warning / error | live region + feedback visual |
 | PWA update | `usePwaUpdate` + `PwaManager` | `src/hooks/usePwaUpdate.ts` | activación manual + recarga coordinada | builds sucesivos, timeout y reintento |
+| Local review preparation | `LocalReviewGuide` + `useReviewContext` + `ReviewContextDialog` | `src/lib/reviewContext.ts` | copia directa / vista previa con el mismo texto | conversaciones, país, datos parciales, portapapeles, móvil |
 | Form | formularios nativos con `noValidate` | componentes propietarios | alta / edición | validación inline |
 | Scrollbar | `src/styles.css` | variables CSS runtime | densidad por superficie | computed style + contraste |
 | CRUD | `AuthorsView` | `src/components/AuthorsView.tsx` | retorno a la vista propietaria | toast + foco |
@@ -87,7 +88,11 @@
 - Resumen, Reglas, Tecnologías y versiones, Remoto local en Preparar → Autores, y Revisión local se muestran solo cuando el correo de la sesión validada es `javier.mejias@kontrollererp.cl`; la navegación también bloquea Resumen para otras cuentas.
 - Este filtro vive en el cliente y sirve para separar la interfaz de uso cotidiano. No es autorización de seguridad: los datos locales y el código de la aplicación no quedan protegidos ante alguien con acceso al mismo navegador o a las herramientas de desarrollo. Para confidencialidad real se necesita autorización en un backend o despliegues separados.
 - El login verifica el API token contra Bitbucket antes de crear la sesión. Las solicitudes abortan a los 30 segundos y muestran un error recuperable, en lugar de dejar el formulario cargando indefinidamente.
-- La guía de revisión para Codex incluye las respuestas a comentarios tuyos posteriores a tu última revisión registrada, emparejadas con el comentario original. Sin una revisión previa, incluye las respuestas pero aclara que no puede confirmar si son nuevas. La app no registra la apertura de un hilo como lectura.
+- `Copiar para Codex` consulta bajo demanda los detalles del PR seleccionado y copia una guía autocontenida; abrir la cola o desplegar la guía no dispara consultas de contexto por cada PR. `Ver contexto` comparte la consulta y permite actualizarla y previsualizar exactamente la guía copiada. Cada lectura tiene un límite total de 90 segundos, cancelación y límite por petición.
+- La guía contiene identidad, descripción, URL, ramas, repositorios, remotos configurados, reglas, cambios, comentarios y respuestas directas o anidadas a tus observaciones. Separa el histórico de las respuestas posteriores a tu última participación. Esa fecha y abrir un hilo no demuestran lectura ni resolución. La actividad recién consultada tiene prioridad sobre la de la cola, salvo fallo identificado.
+- El país depende de la rama destino: prefijos `propyme`/`pine` corresponden a Chile, `peru` a Perú y el resto a Perú inferido, con advertencia de confirmar excepciones. Una rama ausente no determina país. «Remotos actualizados» es una declaración del usuario, no una comprobación de Git.
+- El contexto adicional permite pegar respuestas externas o notas de revisiones anteriores. Es opcional y transitorio por registro: se conserva al cerrar el diálogo o contraer la guía, pero se pierde al retirar el PR, salir de la cola o recargar. No se persiste ni se consulta WhatsApp. La interfaz explica esta excepción al flujo de formularios guardados.
+- Mientras se prepara la copia se bloquean duplicados y se conserva el tamaño del botón. Una consulta de comentarios fallida bloquea la guía combinada con error persistente y reintento; no se interpreta como ausencia de respuestas. Otros datos faltantes se advierten también dentro del texto. La copia espera al portapapeles antes de confirmar y, si falla, permite consultar o seleccionar la vista previa.
 
 ## Verification
 

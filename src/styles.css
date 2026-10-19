@@ -4211,7 +4211,18 @@ input:focus-visible,
 .instruction-copy, .sync-check, .sync-command, .instruction-configure { border: 0; background: transparent; color: #9eb9b0; cursor: pointer; font: inherit; font-size: .7rem; }
 .instruction-context { display: inline-flex; align-items: center; gap: .35rem; border: 0; border-radius: 6px; padding: .3rem .45rem; color: #d9f1e7; background: rgba(119, 217, 176, .12); cursor: pointer; font: inherit; font-size: .7rem; font-weight: 700; }
 .instruction-context:hover, .instruction-context:focus-visible { color: #071512; background: #8fe2bf; }
-.instruction-copy { display: inline-flex; align-items: center; gap: .35rem; color: #9be8c4; font-weight: 700; }
+.instruction-copy { display: inline-flex; align-items: center; gap: .35rem; min-inline-size: 9rem; min-height: 2rem; color: #9be8c4; font-weight: 700; }
+.instruction-copy:disabled { cursor: wait; opacity: .65; }
+.instruction-copy:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.review-manual-context { display: grid; gap: .45rem; margin-block: .85rem; }
+.review-manual-context label { color: var(--text-primary); font-size: .75rem; font-weight: 600; }
+.review-manual-context textarea { box-sizing: border-box; width: 100%; min-height: 7rem; max-height: 20rem; overflow: auto; resize: none; padding: .65rem; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text-primary); background: var(--surface-1); font: inherit; font-size: .8rem; }
+.review-manual-context textarea:hover { border-color: var(--signal); }
+.review-manual-context textarea:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.review-manual-context small { color: var(--text-secondary); font-size: .7rem; line-height: 1.5; }
+.review-copy-feedback { min-height: 3.25rem; margin-top: .5rem; }
+.review-copy-feedback p { color: var(--text-secondary); font-size: .75rem; overflow-wrap: anywhere; }
+.review-copy-feedback .review-copy-error { color: var(--danger); }
 .sync-check { display: inline-flex; align-items: center; gap: .35rem; }
 .sync-check span, .workflow-sync-toggle span { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1px solid #55736b; border-radius: 4px; color: #071512; font-size: .65rem; }
 .sync-check.is-checked span, .workflow-sync-toggle.is-checked span { border-color: #77d9b0; background: #77d9b0; }

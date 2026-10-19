@@ -49,7 +49,7 @@ export type ReviewContextComment = { id?: number; parentId?: number; authorUuid?
 export type ReviewContextReply = { originalComment: ReviewContextComment; reply: ReviewContextComment }
 export type ReviewContextActivity = { type: 'created' | 'updated' | 'comment' | 'approval' | 'changes'; date: string; actor?: string; summary: string }
 export type ReviewContextDiffstat = { files: number; additions: number; deletions: number; totalChanges: number }
-export type ReviewContextReviewState = { isNew: boolean; requiresReview: boolean; isRevisit: boolean; status: PrStatus; reviewDate?: string; lastRelevantActivity?: ReviewContextActivity }
+export type ReviewContextReviewState = { isNew: boolean; requiresReview: boolean; isRevisit: boolean; status: PrStatus; reviewDate?: string; reviewedCommit?: string; latestCommit?: string; lastRelevantActivity?: ReviewContextActivity }
 export type RuleCategory = 'general' | 'technology' | 'framework' | 'project'
 export type ReviewRule = { id: string; name: string; category: RuleCategory; description: string; version?: string; technology?: string; content: string; source: 'git' | 'local'; rulepackId?: string; sources?: string[] }
 export type Rulepack = { id: string; name: string; version: string; description: string; reviewRules: string; testing?: string; references?: string[]; source: 'git' | 'local'; category?: RuleCategory; technology?: string }
@@ -65,6 +65,7 @@ export type ReviewContext = {
   diffstat: ReviewContextDiffstat
   comments: ReviewContextComment[]
   pendingCommentReplies: ReviewContextReply[]
+  commentReplies: ReviewContextReply[]
   activity: ReviewContextActivity[]
   unavailable: string[]
   rulepacks: AppliedRulepack[]
