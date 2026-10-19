@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -18,10 +18,10 @@ export default function DateRangePicker({ value, onChange }: { value: DateRange;
   const triggerRefs = useRef<Record<'from' | 'to', HTMLButtonElement | null>>({ from: null, to: null })
   const calendarRef = useRef<HTMLDivElement>(null)
   const days = useMemo(() => { const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1); const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7)); return Array.from({ length: 42 }, (_, index) => { const day = new Date(start); day.setDate(start.getDate() + index); return day }) }, [cursor])
-  const close = (restoreFocus = false) => {
+  const close = useCallback((restoreFocus = false) => {
     setOpen(false)
     if (restoreFocus) requestAnimationFrame(() => triggerRefs.current[field]?.focus())
-  }
+  }, [field])
   const selectDay = (day: Date) => {
     const selected = localDate(day)
     if (field === 'from') {
@@ -80,7 +80,7 @@ export default function DateRangePicker({ value, onChange }: { value: DateRange;
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('focusin', onFocusIn)
     }
-  }, [open])
+  }, [close, open])
   useEffect(() => {
     if (open) calendarRef.current?.querySelector<HTMLButtonElement>(`[data-date="${focusedDate}"]`)?.focus()
   }, [open, focusedDate, cursor])
