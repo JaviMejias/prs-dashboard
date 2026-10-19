@@ -1,6 +1,8 @@
-import type { GitWorkflowSettings, IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, RepoConfig, RepositoryTechnology, ReviewHistory, ReviewRule, Session } from '../types'
+import { defaultPersonalPreferences, isPersonalPreferences, isProjectProfile, safeDocumentationUrl } from './projectPreparation'
+import type { GitWorkflowSettings, IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, PersonalReviewPreferences, PreparationData, RepoConfig, RepositoryTechnology, ReviewHistory, ReviewRule, Session, StoredPreparation } from '../types'
 const keys = { session: 'prcr:session', repos: 'prcr:repos', notices: 'prcr:notices', snapshot: 'prcr:snapshot', reviewHistory: 'prcr:review-history', notificationPreferences: 'prcr:notification-preferences', ignoreRules: 'prcr:ignore-rules', gitWorkflow: 'prcr:git-workflow', customRules: 'prcr:custom-rules', repositoryLibraryMigration: 'prcr:repository-library-migration' }
 const failedWrites = new Set<string>()
+const preparationKey = 'prcr:preparation-v1'
 const officialKontrollerRulepack = 'kontroller-official@1.0.0'
 const legacyKontrollerRulepack = 'kontroller-rails-legacy@1.0.0'
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === 'object' && !Array.isArray(value))
@@ -8,11 +10,14 @@ const isStringArray = (value: unknown): value is string[] => Array.isArray(value
 const isTechnology = (value: unknown): value is RepositoryTechnology => isRecord(value)
   && typeof value.id === 'string' && typeof value.name === 'string' && typeof value.version === 'string'
   && ['language', 'framework', 'library'].includes(String(value.kind))
+  && (value.evidence === undefined || typeof value.evidence === 'string')
+  && (value.documentationUrl === undefined || (typeof value.documentationUrl === 'string' && Boolean(safeDocumentationUrl(value.documentationUrl))))
 const isRepo = (value: unknown): value is RepoConfig => isRecord(value)
   && typeof value.workspace === 'string' && typeof value.repo === 'string'
   && (value.technologies === undefined || (Array.isArray(value.technologies) && value.technologies.every(isTechnology)))
   && (value.ruleRefs === undefined || isStringArray(value.ruleRefs))
   && (value.rulepackRefs === undefined || isStringArray(value.rulepackRefs))
+  && (value.profile === undefined || isProjectProfile(value.profile))
 const isRepoList = (value: unknown): value is RepoConfig[] => Array.isArray(value) && value.every(isRepo)
 const isSession = (value: unknown): value is Session => isRecord(value)
   && typeof value.email === 'string' && typeof value.token === 'string' && typeof value.expiresAt === 'number'
@@ -129,7 +134,7 @@ export function migrateKontrollerRepository(repo: RepoConfig): RepoConfig {
     rulepackRefs: [...rulepackRefs, officialKontrollerRulepack],
   }
 }
-export const getRepos = () => {
+const getLegacyRepos = () => {
   const validStoredRepos = isStoredJsonValid(keys.repos, isRepoList)
   const repos = uniqueRepos(getJson(keys.repos, initialRepos, isRepoList))
   if (!validStoredRepos || getJson(keys.repositoryLibraryMigration, false, (value): value is boolean => typeof value === 'boolean')) return repos
@@ -138,9 +143,36 @@ export const getRepos = () => {
   saveJson(keys.repositoryLibraryMigration, true)
   return migrated
 }
-export const saveRepos = (r: RepoConfig[]) => saveJson(keys.repos, uniqueRepos(r))
-export const getCustomRules = () => getJson<ReviewRule[]>(keys.customRules, [], (value): value is ReviewRule[] => Array.isArray(value) && value.every(isReviewRule)).filter((rule) => rule.source === 'local')
-export const saveCustomRules = (rules: ReviewRule[]) => saveJson(keys.customRules, rules)
+const getLegacyRules = () => getJson<ReviewRule[]>(keys.customRules, [], (value): value is ReviewRule[] => Array.isArray(value) && value.every(isReviewRule)).filter((rule) => rule.source === 'local')
+const isPreparationData = (value: unknown): value is PreparationData => isRecord(value) && isRepoList(value.repositories)
+  && Array.isArray(value.customRules) && value.customRules.every(isReviewRule) && isPersonalPreferences(value.personalPreferences)
+const isStoredPreparation = (value: unknown): value is StoredPreparation => isPreparationData(value)
+  && 'schemaVersion' in value && value.schemaVersion === 1
+  && (!('previous' in value) || value.previous === undefined || isPreparationData(value.previous))
+
+export function getPreparationSettings(): StoredPreparation {
+  return getJson<StoredPreparation | null>(preparationKey, null, (value): value is StoredPreparation | null => value === null || isStoredPreparation(value))
+    || { schemaVersion: 1, repositories: getLegacyRepos(), customRules: getLegacyRules(), personalPreferences: { ...defaultPersonalPreferences } }
+}
+
+export function savePreparationSettings(data: PreparationData, allowUndo = false) {
+  if (!isPreparationData(data)) return false
+  const previous = allowUndo ? getPreparationSettings() : undefined
+  const value: StoredPreparation = {
+    schemaVersion: 1, repositories: uniqueRepos(data.repositories), customRules: data.customRules, personalPreferences: data.personalPreferences,
+    ...(previous ? { previous: { repositories: previous.repositories, customRules: previous.customRules, personalPreferences: previous.personalPreferences } } : {}),
+  }
+  if (!saveJson(preparationKey, value)) return false
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('prcr:preparation-changed'))
+  return true
+}
+
+export const getRepos = () => getPreparationSettings().repositories
+export const saveRepos = (repositories: RepoConfig[]) => savePreparationSettings({ ...getPreparationSettings(), repositories })
+export const getCustomRules = () => getPreparationSettings().customRules
+export const saveCustomRules = (customRules: ReviewRule[]) => savePreparationSettings({ ...getPreparationSettings(), customRules })
+export const getPersonalReviewPreferences = () => getPreparationSettings().personalPreferences
+export const savePersonalReviewPreferences = (personalPreferences: PersonalReviewPreferences) => savePreparationSettings({ ...getPreparationSettings(), personalPreferences })
 export const getNotices = () => getJson<unknown[]>(keys.notices, [], (value): value is unknown[] => Array.isArray(value)).filter(isActionableNotice)
 export const saveNotices = (n: Notice[]) => saveJson(keys.notices, n.slice(0, 40))
 export const getSnapshot = () => getJson<NotificationSnapshot>(keys.snapshot, {}, isNotificationSnapshot)

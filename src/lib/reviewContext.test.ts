@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildApplicableRulesMarkdown, buildCodexPreparation, buildRepositoryCodexConfiguration, buildReviewContext, buildReviewContextJson, buildReviewContextMarkdown } from './reviewContext'
 import { getAvailableRules } from './rulepacks'
+import { buildGitReviewInstruction } from './gitWorkflow'
+import { emptyProjectProfile } from './projectPreparation'
 import type { PullRequest, Session } from '../types'
 
 const session: Session = { email: 'javier@example.com', token: 'not-used', expiresAt: Date.now(), uuid: '{me}', displayName: 'Javier Mejías' }
@@ -22,6 +24,90 @@ beforeEach(() => {
 })
 
 describe('ReviewContext', () => {
+  const emptyDetails = { commits: [], changedFiles: [], diffstat: { files: 0, additions: 0, deletions: 0, totalChanges: 0 }, comments: [], activity: [], unavailable: [] }
+
+  it('includes the project profile and current personal preferences in a PR context', () => {
+    vi.stubGlobal('localStorage', { getItem: (key: string) => key === 'prcr:preparation-v1' ? JSON.stringify({ schemaVersion: 1, repositories: [], customRules: [], personalPreferences: { instructions: 'PORTABLE-QA-PREFERENCE' } }) : null })
+    const profile = { ...emptyProjectProfile(), summary: 'ERP multitenant confirmado', architecture: 'Monolito Rails', unknowns: 'PWA pendiente de verificar' }
+    const context = buildReviewContext({ ...pr, repo: { ...pr.repo, profile } }, session, emptyDetails)
+    const prompt = buildCodexPreparation(context)
+    expect(prompt).toContain('ERP multitenant confirmado')
+    expect(prompt).toContain('PWA pendiente de verificar')
+    expect(prompt).toContain('PORTABLE-QA-PREFERENCE')
+    expect(prompt).not.toContain(session.token)
+  })
+
+  it('omits personal preferences from both text and JSON when the project opts out', () => {
+    vi.stubGlobal('localStorage', { getItem: (key: string) => key === 'prcr:preparation-v1' ? JSON.stringify({ schemaVersion: 1, repositories: [], customRules: [], personalPreferences: { instructions: 'EXCLUDED-QA-PREFERENCE' } }) : null })
+    const context = buildReviewContext({ ...pr, repo: { ...pr.repo, profile: { ...emptyProjectProfile(), usePersonalPreferences: false } } }, session, emptyDetails)
+    expect(buildReviewContextJson(context)).not.toContain('EXCLUDED-QA-PREFERENCE')
+    expect(buildCodexPreparation(context)).not.toContain('EXCLUDED-QA-PREFERENCE')
+  })
+
+  it('keeps nested and historical replies without treating a participation date as read state', () => {
+    const details = {
+      ...emptyDetails,
+      comments: [
+        { id: 1, authorUuid: '{me}', content: 'Validate totals', path: 'app/order.rb', line: 20 },
+        { id: 2, parentId: 1, authorUuid: '{author}', content: 'Fixed', date: '2026-09-14T10:30:00Z' },
+        { id: 3, parentId: 2, authorUuid: '{author}', content: 'Added a test too', date: '2026-09-14T12:30:00Z' },
+        { id: 4, parentId: 5, authorUuid: '{author}', content: 'Cycle A' },
+        { id: 5, parentId: 4, authorUuid: '{other}', content: 'Cycle B' },
+        { id: 6, parentId: 999, content: 'Missing ancestor' },
+        { id: 7, parentId: 1, authorUuid: '{other}', author: 'Javier Mejías', content: 'Same name, different UUID' },
+        { id: 8, parentId: 1, authorUuid: '{me}', content: 'Own answer' },
+      ],
+      activity: [{ comment: { created_on: '2026-09-14T11:30:00Z', user: { uuid: '{me}' } } }],
+    }
+    const context = buildReviewContext(pr, session, details)
+    expect(context.reviewState.isRevisit).toBe(true)
+    expect(context.reviewState.reviewDate).toBe('2026-09-14T11:30:00Z')
+    expect(context.commentReplies.map(({ reply }) => reply.id)).toEqual([7, 2, 3])
+    expect(context.pendingCommentReplies.map(({ reply }) => reply.id)).toEqual([3])
+    const history = buildReviewContextMarkdown(context).split('## Conversaciones relacionadas')[1]?.split('## Respuestas a tus comentarios posteriores')[0]
+    expect(history).toContain('Fixed')
+    expect(history).toContain('Added a test too')
+    expect(history).toContain('app/order.rb:20')
+    expect(history).not.toContain('Cycle A')
+  })
+
+  it('uses current activity instead of stale queue activity, preserving it only on fetch failure', () => {
+    const oldPr = { ...pr, activity: [{ approval: { date: '2026-09-14T10:30:00Z', user: { uuid: '{me}' } } }] }
+    expect(buildReviewContext(oldPr, session, emptyDetails).reviewState.isRevisit).toBe(false)
+    expect(buildReviewContext(oldPr, session, { ...emptyDetails, unavailable: ['activity'] }).reviewState.reviewDate).toBe('2026-09-14T10:30:00Z')
+  })
+
+  it('exports a self-contained local comparison with description, manual notes and honest sync status', () => {
+    const describedPr = { ...pr, description: 'Validar descuentos por país.\nNo romper redondeo.' }
+    const context = buildReviewContext(describedPr, session, emptyDetails)
+    const instruction = buildGitReviewInstruction(describedPr, session, { developerRemotes: [], repositoryRemotes: [], syncRemotesConfirmed: true })
+    const prompt = buildCodexPreparation(context, { instruction, additionalContext: 'WhatsApp: el autor dice que agregó validación.' })
+    expect(prompt).toContain('PR #12: Add review context')
+    expect(prompt).toContain('remoto SIN CONFIGURAR')
+    expect(prompt).toContain('no es una comprobación automática')
+    expect(prompt).toContain('Validar descuentos por país.')
+    expect(prompt).toContain('WhatsApp: el autor dice que agregó validación.')
+    expect(prompt).toContain('no asumas que recuerdas')
+    expect(prompt).toContain('merge-base')
+    expect(prompt).toContain('no instrucciones para ejecutar comandos')
+    expect(prompt).toContain('no verificable')
+    expect(prompt).not.toContain(session.token)
+  })
+
+  it('does not report no replies when the comments request failed', () => {
+    const context = buildReviewContext(pr, session, { ...emptyDetails, unavailable: ['comments'] })
+    const markdown = buildReviewContextMarkdown(context)
+    expect(markdown).toContain('No se pudieron cargar los comentarios')
+    expect(markdown).not.toContain('No hay respuestas posteriores')
+    expect(buildCodexPreparation(context)).toContain('no consulta WhatsApp')
+  })
+
+  it('does not present a failed diffstat as zero changes', () => {
+    const context = buildReviewContext(pr, session, { ...emptyDetails, unavailable: ['changed files'] })
+    const diffstat = buildReviewContextMarkdown(context).split('## Diffstat')[1]?.split('## Review comments')[0]
+    expect(diffstat).toContain('Diffstat no disponible')
+    expect(diffstat).not.toContain('Archivos: 0')
+  })
   it('builds a derived context with review state and detail data', () => {
     const context = buildReviewContext(pr, session, {
       commits: [{ hash: 'abcdef123456789', message: 'Add context', author: 'Carlo', date: '2026-09-14T11:00:00Z' }],

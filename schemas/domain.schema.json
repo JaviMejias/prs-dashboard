@@ -28,8 +28,24 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "version": { "type": "string" },
-        "kind": { "type": "string", "enum": ["language", "framework", "library"] }
+        "kind": { "type": "string", "enum": ["language", "framework", "library"] },
+        "evidence": { "type": "string", "maxLength": 2000 },
+        "documentationUrl": { "type": "string", "format": "uri", "pattern": "^https://", "maxLength": 2048 }
       }
+    },
+    "projectProfile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "architecture", "reviewGuidelines", "evidence", "unknowns", "usePersonalPreferences", "useLegacyRules"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 30000 }, "architecture": { "type": "string", "maxLength": 30000 },
+        "reviewGuidelines": { "type": "string", "maxLength": 30000 }, "evidence": { "type": "string", "maxLength": 30000 },
+        "unknowns": { "type": "string", "maxLength": 30000 }, "usePersonalPreferences": { "type": "boolean" },
+        "useLegacyRules": { "type": "boolean" }, "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "personalReviewPreferences": {
+      "type": "object", "additionalProperties": false, "required": ["instructions"],
+      "properties": { "instructions": { "type": "string", "maxLength": 30000 } }
     },
     "author": {
       "type": "object",
@@ -134,7 +150,7 @@
       "required": ["content"],
       "properties": {
         "id": { "type": "integer", "minimum": 0 }, "parentId": { "type": "integer", "minimum": 0 },
-        "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" },
+        "authorUuid": { "type": "string" }, "author": { "type": "string" }, "date": { "type": "string", "format": "date-time" },
         "content": { "type": "string" }, "path": { "type": "string" },
         "line": { "type": "integer", "minimum": 1 }, "url": { "type": "string", "format": "uri" }
       }
@@ -147,6 +163,10 @@
         "type": { "type": "string", "enum": ["created", "updated", "comment", "approval", "changes"] },
         "date": { "type": "string", "format": "date-time" }, "actor": { "type": "string" }, "summary": { "type": "string" }
       }
+    },
+    "reviewContextReply": {
+      "type": "object", "additionalProperties": false, "required": ["originalComment", "reply"],
+      "properties": { "originalComment": { "$ref": "#/$defs/reviewContextComment" }, "reply": { "$ref": "#/$defs/reviewContextComment" } }
     },
     "reviewContextDiffstat": {
       "type": "object",
@@ -164,6 +184,8 @@
       "properties": {
         "isNew": { "type": "boolean" }, "requiresReview": { "type": "boolean" }, "isRevisit": { "type": "boolean" },
         "status": { "type": "string", "enum": ["unreviewed", "changes", "waiting", "current", "merged", "declined"] },
+        "reviewDate": { "type": "string", "format": "date-time" },
+        "reviewedCommit": { "type": "string" }, "latestCommit": { "type": "string" },
         "lastRelevantActivity": { "$ref": "#/$defs/reviewContextActivity" }
       }
     },
@@ -172,10 +194,10 @@
       "additionalProperties": false,
       "required": ["schemaVersion", "repository", "pullRequest", "reviewState", "commits", "changedFiles", "diffstat", "comments", "activity", "unavailable"],
       "properties": {
-        "schemaVersion": { "type": "integer", "const": 1 },
+        "schemaVersion": { "type": "integer", "const": 2 },
         "repository": {
           "type": "object", "additionalProperties": false, "required": ["workspace", "repository"],
-          "properties": { "workspace": { "type": "string" }, "repository": { "type": "string" }, "friendlyName": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } } }
+          "properties": { "workspace": { "type": "string" }, "repository": { "type": "string" }, "friendlyName": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } }, "profile": { "$ref": "#/$defs/projectProfile" }, "personalPreferences": { "$ref": "#/$defs/personalReviewPreferences" } }
         },
         "pullRequest": {
           "type": "object", "additionalProperties": false, "required": ["id", "title", "state", "draft", "createdAt", "updatedAt"],
@@ -193,6 +215,8 @@
         "changedFiles": { "type": "array", "items": { "$ref": "#/$defs/reviewContextFile" } },
         "diffstat": { "$ref": "#/$defs/reviewContextDiffstat" },
         "comments": { "type": "array", "items": { "$ref": "#/$defs/reviewContextComment" } },
+        "commentReplies": { "type": "array", "items": { "$ref": "#/$defs/reviewContextReply" } },
+        "pendingCommentReplies": { "type": "array", "items": { "$ref": "#/$defs/reviewContextReply" } },
         "activity": { "type": "array", "items": { "$ref": "#/$defs/reviewContextActivity" } },
         "unavailable": { "type": "array", "items": { "type": "string" } },
         "rulepacks": { "type": "array", "items": { "$ref": "#/$defs/appliedRulepack" } },

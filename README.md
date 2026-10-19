@@ -185,16 +185,60 @@ sostiene las capacidades de PWA, no ejecuta polling en segundo plano.
 
 ## Preparar
 
-La vista Preparar agrupa la configuración del trabajo local:
+Preparar muestra una ficha por proyecto: contexto, arquitectura, versiones,
+criterios de revisión, evidencia y dudas. Mis preferencias se guardan una sola
+vez y cada ficha decide si aplicarlas. Git, autores y la biblioteca anterior
+siguen disponibles en Configuración avanzada.
 
-- Repositorios: tecnologías, versiones y reglas asociadas.
-- Autores: aliases y remotos locales de autores de Bitbucket.
-- Reglas: biblioteca global y reglas personalizadas.
+Para conocer un proyecto nuevo:
+
+1. Usa Conocer proyecto y pega la instrucción en Codex dentro de su carpeta.
+2. En Editar ficha, abre Pegar el resultado de Codex y revisa su JSON.
+3. Corrige el borrador y pulsa Guardar ficha. No se aplica automáticamente.
+
+El reconocimiento es limitado y de solo lectura, no una auditoría global.
+La app no analiza la carpeta ni ejecuta Codex. Las referencias oficiales deben
+corresponder a la versión detectada; una fuente de una serie, como Ruby 2.4,
+no se presenta como documentación exacta del parche 2.4.3.
+
+Copiar para Codex y Descargar AGENTS.md generan el mismo contexto del proyecto,
+incluidas sus reglas seleccionadas. No escriben archivos en tu repositorio.
+La ficha también se incorpora al contexto de los PR sin volver a descargar la
+cola. Una preferencia personal no tiene prioridad sobre una convención
+verificada del proyecto y los conflictos deben señalarse explícitamente.
+
+Descargar respaldo guarda fichas, tecnologías, preferencias, selecciones y
+copias de las reglas en JSON portable v2. Restaurar muestra una vista previa y
+permite conservar lo actual o usar el respaldo; no elimina otros proyectos.
+La escritura es atómica y ofrece Deshacer hasta la siguiente edición. Las
+bibliotecas antiguas de reglas se importan desde las opciones avanzadas.
+
+Todo queda solo en este navegador: guarda el respaldo fuera de tu PC antes de
+formatear. No hay sincronización automática. El respaldo no incluye la sesión,
+los aliases Git ni metadata de rutas de este equipo. Revisa los textos libres
+antes de compartirlos; no son filtrados automáticamente para detectar secretos.
 
 El contexto preparado puede incluir repositorio, ramas, estado, autor, fechas,
 commits, archivos modificados, diffstat, comentarios, actividad y reglas
-aplicables. Preparar para Codex genera Markdown para copiar manualmente; no
+aplicables. Copiar para Codex genera Markdown para copiar manualmente; no
 ejecuta Codex, Git ni comandos externos.
+
+En Revisión local, `Copiar para Codex` descarga bajo demanda el contexto de ese
+PR: descripción, cambios y conversaciones, con las respuestas directas y
+anidadas a tus observaciones. `Ver contexto` permite previsualizar la misma
+guía y actualizar sus datos. Si fallan los comentarios, la copia combinada se
+bloquea para no omitir silenciosamente las respuestas del desarrollador.
+
+La guía identifica Chile cuando el destino empieza por `propyme` o `pine`,
+Perú para `peru`, y Perú inferido para los demás destinos, advirtiendo posibles
+excepciones. Incluye aliases locales, repositorios y ramas, y distingue una
+declaración de remotos actualizados de una comprobación automática.
+
+El campo opcional Contexto adicional permite pegar respuestas de WhatsApp o
+recordar observaciones anteriores. No conecta con WhatsApp ni guarda la nota:
+se mantiene al contraer la guía, pero se pierde al salir de la cola o recargar.
+Los comentarios y notas se entregan a Codex como datos a contrastar con el
+código, no como evidencia de que el problema ya se resolvió.
 
 ## Rule Library y rulepacks
 
@@ -222,8 +266,11 @@ necesites conservar la trazabilidad de una regla anterior.
 La aplicación puede mostrar una guía como:
 
 ~~~text
-Revisemos este PR desde el remoto cosores, rama feature/mi-cambio, hacia el
-remoto origin, rama propyme_production. Remotos actualizados.
+Revisión del PR #1886: KON-1886 Validar descuentos.
+Origen: repositorio del autor, remoto cosores, rama KON-1886.
+Base: repositorio del equipo, remoto origin, rama propyme_production.
+Destino: Chile (según la rama destino).
+Incluye descripción, commits, archivos, comentarios y seguimiento de respuestas.
 ~~~
 
 Es una guía para el usuario. La aplicación no ejecuta git fetch, no crea

@@ -106,7 +106,8 @@ export const rulepackReference = referenceFor
 export const ruleReference = (id: string, version = '1.0.0') => referenceFor(id, version)
 
 export function getAvailableRules(extraRules: ReviewRule[] = []) {
-  return [...bundledRules, ...extraRules].map((rule) => ({ ...rule, reference: ruleReference(rule.id, rule.version) }))
+  return Array.from(new Map([...bundledRules, ...extraRules].map((rule) => [ruleReference(rule.id, rule.version), rule])).values())
+    .map((rule) => ({ ...rule, reference: ruleReference(rule.id, rule.version) }))
 }
 
 export function getRule(reference: string, extraRules: ReviewRule[] = []) {
@@ -114,6 +115,7 @@ export function getRule(reference: string, extraRules: ReviewRule[] = []) {
 }
 
 export function resolveRulesForRepository(repo: RepoConfig, extraRules: ReviewRule[] = []) {
+  if (repo.profile?.useLegacyRules === false) return { rules: [], unavailable: [] }
   const catalog = getAvailableRules(extraRules)
   const selected = catalog.filter((rule) => rule.category === 'general').map((rule) => rule.reference)
   selected.push(...(repo.ruleRefs || []))
@@ -126,6 +128,7 @@ export function resolveRulesForRepository(repo: RepoConfig, extraRules: ReviewRu
     seen.add(reference)
     const rule = getRule(reference, extraRules)
     if (!rule) { unavailable.push(`Regla ${reference}`); return }
+    if (repo.profile && rule.id === 'kontroller-code-style') return
     rules.push(rule)
   })
   for (const packReference of repo.rulepackRefs || []) if (packReference !== officialReference) unavailable.push(`Rulepack ${packReference}`)
@@ -135,13 +138,13 @@ export function resolveRulesForRepository(repo: RepoConfig, extraRules: ReviewRu
 export function resolveRulepacksForRepository(repo: RepoConfig, extraRules: ReviewRule[] = []) {
   const rulepacks: AppliedRulepack[] = []
   const unavailable: string[] = []
-  for (const reference of repo.rulepackRefs || []) {
+  for (const reference of repo.profile?.useLegacyRules === false ? [] : repo.rulepackRefs || []) {
     const rulepack = getRulepack(reference)
     if (!rulepack) { unavailable.push(`Rulepack ${reference}`); continue }
     const issues = validateRulepackMetadata(rulepack, rulepack.contents)
     if (issues.length) { unavailable.push(`${reference}: ${issues.join(', ')}`); continue }
     const { contents: _contents, ...metadata } = rulepack
-    rulepacks.push({ ...metadata, reviewRulesContent: rulepack.contents[rulepack.reviewRules], referenceContents: (rulepack.references || []).map((path) => ({ path, content: rulepack.contents[path] })) })
+    if (!repo.profile) rulepacks.push({ ...metadata, reviewRulesContent: rulepack.contents[rulepack.reviewRules], referenceContents: (rulepack.references || []).map((path) => ({ path, content: rulepack.contents[path] })) })
   }
   const resolvedRules = resolveRulesForRepository(repo, extraRules)
   const unavailableSet = new Set(unavailable)
