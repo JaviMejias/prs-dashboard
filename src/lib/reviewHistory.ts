@@ -11,7 +11,11 @@ function toReviewEvent(item: PullRequestActivity): ReviewHistoryEvent | undefine
     const date = eventDate(item)
     if (!date) return undefined
     const user = eventUser(item)
-    return { id: eventId('comment', date, user), date, type: 'comment', reviewerUuid: user?.uuid, reviewerName: user?.display_name }
+    const commentId = item.comment.id
+    const stableId = commentId === undefined
+      ? eventId('comment', item.comment.created_on || date, user)
+      : `comment:${commentId}`
+    return { id: stableId, date, type: 'comment', reviewerUuid: user?.uuid, reviewerName: user?.display_name, commentId }
   }
   if (item.approval) {
     const date = eventDate(item)
@@ -62,7 +66,11 @@ export function mergeReviewHistory(history: ReviewHistory, prs: PullRequest[], s
         pullRequests[String(pr.id)] = next
         return
       }
-      const events = Array.from(new Map([...previousPullRequest.events, ...next.events].map((event) => [event.id, event])).values())
+      const replaceLegacyComments = coverage === 'complete' && (pr.activity || []).some((item) => item.comment)
+      const previousEvents = replaceLegacyComments
+        ? previousPullRequest.events.filter((event) => event.type !== 'comment')
+        : previousPullRequest.events
+      const events = Array.from(new Map([...previousEvents, ...next.events].map((event) => [event.id, event])).values())
         .sort((first, second) => new Date(first.date).getTime() - new Date(second.date).getTime())
       pullRequests[String(pr.id)] = { ...next, ...previousPullRequest, title: pr.title, url: pr.links?.html?.href || previousPullRequest.url, state: pr.state, updatedOn: pr.updated_on, events }
     })

@@ -2,11 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, CircleSlash2, FileCode2, GitCommitHorizontal, MessageCircle, Minus, Plus } from 'lucide-react'
 import { getStats } from '../lib/bitbucket'
 import { formatDate } from '../lib/dashboard'
+import { sessionCacheKey } from '../lib/queryIdentity'
 import type { PullRequest, Session } from '../types'
 
 export default function PullRequestStats({ pr, session }: { pr: PullRequest; session: Session }) {
   const query = useQuery({
-    queryKey: ['stats', pr.id, pr.updated_on],
+    queryKey: ['stats', sessionCacheKey(session), pr.repo.workspace, pr.repo.repo, pr.id, pr.updated_on],
     queryFn: () => getStats(pr, session),
   })
   const compactCreatedDate = new Date(pr.created_on).toLocaleDateString('es-CL', {

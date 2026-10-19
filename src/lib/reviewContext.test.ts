@@ -32,7 +32,7 @@ describe('ReviewContext', () => {
       unavailable: [],
     })
 
-    expect(context.schemaVersion).toBe(1)
+    expect(context.schemaVersion).toBe(2)
     expect(context.pullRequest.sourceBranch).toBe('feature/context')
     expect(context.reviewState.isNew).toBe(true)
     expect(context.commits[0].hash).toBe('abcdef123456789')
@@ -49,8 +49,44 @@ describe('ReviewContext', () => {
     expect(markdown).toContain('# Pull Request')
     expect(markdown).toContain('## Review state')
     expect(markdown).toContain('No fue posible obtener commits')
-    expect(json).toContain('"schemaVersion": 1')
+    expect(json).toContain('"schemaVersion": 2')
     expect(json).not.toContain(session.token)
+  })
+
+  it('pairs replies to my comments after my latest review and tells Codex to verify them', () => {
+    const reviewedPr = {
+      ...pr,
+      updated_on: '2026-09-14T12:30:00Z',
+      activity: [
+        { pull_request: { id: 12 }, comment: { id: 10, created_on: '2026-09-14T11:30:00Z', user: { uuid: '{me}' } } },
+        { pull_request: { id: 12 }, comment: { id: 11, parent: { id: 10 }, created_on: '2026-09-14T12:30:00Z', user: { uuid: '{author}' } } },
+      ],
+    }
+    const context = buildReviewContext(reviewedPr, session, {
+      commits: [],
+      changedFiles: [],
+      diffstat: { files: 0, additions: 0, deletions: 0, totalChanges: 0 },
+      comments: [
+        { id: 10, authorUuid: '{me}', author: 'Javier Mejías', date: '2026-09-14T11:30:00Z', content: 'Please add validation.' },
+        { id: 11, parentId: 10, authorUuid: '{author}', author: 'Carlo Osores Salgado', date: '2026-09-14T12:30:00Z', content: 'Added the validation.' },
+        { id: 12, parentId: 10, authorUuid: '{author}', author: 'Carlo Osores Salgado', date: '2026-09-14T11:20:00Z', content: 'Older reply.' },
+        { id: 13, authorUuid: '{other}', author: 'Another reviewer', date: '2026-09-14T11:00:00Z', content: 'A separate comment.' },
+        { id: 14, parentId: 13, authorUuid: '{author}', author: 'Carlo Osores Salgado', date: '2026-09-14T12:40:00Z', content: 'Unrelated reply.' },
+      ],
+      activity: reviewedPr.activity || [],
+      unavailable: [],
+    })
+    const markdown = buildReviewContextMarkdown(context)
+    const prompt = buildCodexPreparation(context)
+    const pendingReplySection = markdown.split('## Respuestas a tus comentarios posteriores a la última revisión registrada')[1]?.split('## Relevant activity')[0] || ''
+
+    expect(context.reviewState.reviewDate).toBe('2026-09-14T11:30:00Z')
+    expect(context.pendingCommentReplies).toHaveLength(1)
+    expect(pendingReplySection).toContain('Please add validation.')
+    expect(pendingReplySection).toContain('Added the validation.')
+    expect(pendingReplySection).not.toContain('Older reply.')
+    expect(pendingReplySection).not.toContain('Unrelated reply.')
+    expect(prompt).toContain('compara cada respuesta con el comentario original')
   })
 
   it('includes applicable rules and prepares a readable Codex prompt', () => {

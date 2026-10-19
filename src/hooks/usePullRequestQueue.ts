@@ -2,12 +2,13 @@ import { useMemo } from 'react'
 import { useQueries, type UseQueryResult } from '@tanstack/react-query'
 import { getPullRequests } from '../lib/bitbucket'
 import { PULL_REQUEST_POLL_INTERVAL_MS, repositoryKey } from '../lib/notifications'
+import { sessionCacheKey } from '../lib/queryIdentity'
 import type { PullRequest, RepoConfig, Session } from '../types'
 
 export function usePullRequestQueue(session: Session | null, repos: RepoConfig[]) {
   const queries = useQueries({
     queries: session ? repos.map((repo) => ({
-      queryKey: ['prs-v2', repo.workspace, repo.repo],
+      queryKey: ['prs-v2', sessionCacheKey(session), repo.workspace, repo.repo],
       queryFn: () => getPullRequests(repo, session),
       refetchInterval: PULL_REQUEST_POLL_INTERVAL_MS,
       refetchIntervalInBackground: true,

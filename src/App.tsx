@@ -19,7 +19,9 @@ import { useReviewQueueFilters } from './hooks/useReviewQueueFilters'
 import { usePullRequestQueue } from './hooks/usePullRequestQueue'
 import { useDashboardNotifications } from './hooks/useDashboardNotifications'
 import { displayName, pullRequestKey } from './lib/dashboard'
+import { hasPersonalAccess } from './lib/accountAccess'
 import type { LifecycleFilter, ReviewFilter } from './lib/dashboard'
+import { rangeFor, type DateRange } from './lib/dateRange'
 import {
   clearSession,
   defaultNotificationPreferences,
@@ -45,6 +47,12 @@ export default function App() {
   })
 
   useEffect(() => {
+    const notifyStorageFailure = () => toast.error('No se pudieron guardar los cambios', { description: 'El navegador rechazó el almacenamiento. Los cambios podrían perderse al cerrar o recargar la app.' })
+    window.addEventListener('prcr:storage-write-failed', notifyStorageFailure)
+    return () => window.removeEventListener('prcr:storage-write-failed', notifyStorageFailure)
+  }, [])
+
+  useEffect(() => {
     if (!session) return
     const timer = window.setInterval(() => {
       if (Date.now() < session.expiresAt) return
@@ -63,6 +71,8 @@ type DashboardLayoutProps = {
   session: Session
   repos: RepoConfig[]
   activeView: AppView
+  summaryRange: DateRange
+  onSummaryRangeChange: (range: DateRange) => void
   onViewChange: (view: AppView) => void
   reviewCount: number
   fetching: boolean
@@ -92,7 +102,7 @@ type DashboardLayoutProps = {
   setFilterLifecycle: (value: LifecycleFilter) => void
   setFilterReview: (value: ReviewFilter) => void
   gitWorkflowSettings: GitWorkflowSettings
-  onGitWorkflowSettingsChange: (settings: GitWorkflowSettings) => void
+  onGitWorkflowSettingsChange: (settings: GitWorkflowSettings) => boolean
   onResetFilters: () => void
   highlightedPrKey: string | null
   visibleLimit: number
@@ -121,13 +131,14 @@ function syncDetailFor({ isOnline, fetching, allRepositoriesFailed, errorCount, 
 }
 
 function DashboardHeader({ session, activeView, onViewChange, reviewCount, fetching, isOnline, allRepositoriesFailed, errorCount, latestSync, onRefresh, notificationCenter, settingsTriggerRef, onOpenSettings }: Pick<DashboardLayoutProps, 'session' | 'activeView' | 'onViewChange' | 'reviewCount' | 'fetching' | 'isOnline' | 'allRepositoriesFailed' | 'errorCount' | 'latestSync' | 'onRefresh' | 'notificationCenter' | 'settingsTriggerRef' | 'onOpenSettings'>) {
+  const showPersonalTools = hasPersonalAccess(session)
   const userName = displayName(session.displayName, session.email)
   const { notices, noticePresentations, unread, showNotices, notificationTriggerRef, markNoticeRead, locateNotice, deleteNotice, clearNotices, toggleNotices, closeNotices } = notificationCenter
   const syncLabel = syncLabelFor({ isOnline, fetching, allRepositoriesFailed, errorCount })
   const syncDetail = syncDetailFor({ isOnline, fetching, allRepositoriesFailed, errorCount, latestSync })
   return <header className="topbar">
     <div className="topbar-leading"><div className="brand"><span className="brand-mark"><GitPullRequest size={19} /></span><span className="brand-copy"><strong>PR Control Room</strong><small>Bitbucket review intelligence</small></span></div></div>
-    <nav className="desktop-nav" aria-label="Navegación principal de escritorio"><button type="button" className={activeView === 'queue' ? 'is-active' : ''} onClick={() => onViewChange('queue')}><GitPullRequest size={15} /> Cola{reviewCount > 0 && <b>{reviewCount}</b>}</button><button type="button" className={activeView === 'summary' ? 'is-active' : ''} onClick={() => onViewChange('summary')}><ScanEye size={15} /> Resumen</button><button type="button" className={activeView === 'authors' ? 'is-active' : ''} onClick={() => onViewChange('authors')}><GitBranch size={15} /> Preparar</button></nav>
+    <nav className="desktop-nav" aria-label="Navegación principal de escritorio"><button type="button" className={activeView === 'queue' ? 'is-active' : ''} onClick={() => onViewChange('queue')}><GitPullRequest size={15} /> Cola{reviewCount > 0 && <b>{reviewCount}</b>}</button>{showPersonalTools && <button type="button" className={activeView === 'summary' ? 'is-active' : ''} onClick={() => onViewChange('summary')}><ScanEye size={15} /> Resumen</button>}<button type="button" className={activeView === 'authors' ? 'is-active' : ''} onClick={() => onViewChange('authors')}><GitBranch size={15} /> Preparar</button></nav>
     <div className="topbar-actions"><div className={`sync-status ${fetching && isOnline ? 'is-syncing' : ''} ${!isOnline || allRepositoriesFailed ? 'has-error' : errorCount > 0 && !fetching ? 'has-warning' : ''}`} role="status"><span className="sync-dot" /><span><strong>{syncLabel}</strong><small>{syncDetail}</small></span></div><button type="button" className="icon-button" onClick={onRefresh} aria-label="Actualizar pull requests" aria-busy={fetching} title="Actualizar pull requests"><RefreshCw size={18} className={fetching ? 'spin' : ''} /></button><div className="notification-control"><button ref={notificationTriggerRef} type="button" className="icon-button notification-trigger" onClick={toggleNotices} aria-label={`Notificaciones${unread ? `, ${unread} sin leer` : ''}`} aria-expanded={showNotices} title="Notificaciones"><Bell size={18} />{unread > 0 && <b>{unread}</b>}</button><AnimatePresence>{showNotices && <NotificationPanel notices={notices} presentations={noticePresentations} triggerRef={notificationTriggerRef} onClose={closeNotices} onRead={markNoticeRead} onSelect={locateNotice} onDelete={deleteNotice} onClear={clearNotices} />}</AnimatePresence></div><button ref={settingsTriggerRef} type="button" className="user-button" onClick={onOpenSettings} aria-label="Abrir configuración" title="Configuración"><Avatar name={userName} size="small" /><span><strong>{userName}</strong><small>Configuración</small></span><Settings2 size={16} /></button></div>
   </header>
 }
@@ -135,15 +146,16 @@ function DashboardHeader({ session, activeView, onViewChange, reviewCount, fetch
 function DashboardMain({ layout }: { layout: DashboardLayoutProps }) {
   const { activeView, onViewChange, reviewCount, repos, allPrs, visiblePrs, sortedPrs, statusCounts, session, filterRepo, filterLifecycle, filterReview, setFilterRepo, setFilterLifecycle, setFilterReview, gitWorkflowSettings, onGitWorkflowSettingsChange, onResetFilters, onRefresh, onLoadMore, highlightedPrKey, visibleLimit, errorCount, allRepositoriesFailed, fetching, initialLoading, loadingIsSlow, isOnline, fetchedRepositories, repositoryCount, loadingProgress } = layout
   const reduceMotion = useReducedMotion()
-  return <main id="main-content" className="content"><Suspense fallback={<ViewLoading label={activeView === 'summary' ? 'Cargando resumen…' : 'Cargando preparación…'} />}><AnimatePresence mode="wait" initial={false}><m.div key={activeView} className={`dashboard-view dashboard-view-${activeView}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -6 }} transition={{ duration: reduceMotion ? 0 : .2, ease: 'easeOut' }}>{activeView === 'queue' ? <><section className="queue-intro" aria-labelledby="queue-title"><div><span className="section-kicker">Bandeja priorizada</span><h1 id="queue-title">Cola de revisión</h1><p>Prioridad y contexto para decidir sin volver a recorrer Bitbucket.</p></div><div className="attention-summary" aria-label={`${reviewCount} ${reviewCount === 1 ? 'requiere' : 'requieren'} tu revisión`}><span className="attention-icon"><ScanEye size={20} /></span><strong>{reviewCount}</strong><span>{reviewCount === 1 ? 'requiere' : 'requieren'}<br />tu revisión</span></div></section><QueueView repos={repos} allPrs={allPrs} visiblePrs={visiblePrs} sortedPrs={sortedPrs} statusCounts={statusCounts} session={session} filterRepo={filterRepo} filterLifecycle={filterLifecycle} filterReview={filterReview} setFilterRepo={setFilterRepo} setFilterLifecycle={setFilterLifecycle} setFilterReview={setFilterReview} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenPreparation={() => onViewChange('authors')} onReset={onResetFilters} onRetry={onRefresh} onLoadMore={onLoadMore} highlightedPrKey={highlightedPrKey} visibleLimit={visibleLimit} errorCount={errorCount} allRepositoriesFailed={allRepositoriesFailed} fetching={fetching} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} /></> : activeView === 'summary' ? <SummaryView prs={allPrs} repos={repos} session={session} /> : <AuthorsView prs={allPrs} repos={repos} setRepos={layout.setRepos} settings={gitWorkflowSettings} onChange={onGitWorkflowSettingsChange} />}</m.div></AnimatePresence></Suspense></main>
+  const showPersonalTools = hasPersonalAccess(session)
+  return <main id="main-content" className="content"><Suspense fallback={<ViewLoading label={activeView === 'summary' ? 'Cargando resumen…' : 'Cargando preparación…'} />}><AnimatePresence mode="wait" initial={false}><m.div key={activeView} className={`dashboard-view dashboard-view-${activeView}`} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? undefined : { opacity: 0, y: -6 }} transition={{ duration: reduceMotion ? 0 : .2, ease: 'easeOut' }}>{activeView === 'queue' ? <><section className="queue-intro" aria-labelledby="queue-title"><div><span className="section-kicker">Bandeja priorizada</span><h1 id="queue-title">Cola de revisión</h1><p>Prioridad y contexto para decidir sin volver a recorrer Bitbucket.</p></div><div className="attention-summary" aria-label={`${reviewCount} ${reviewCount === 1 ? 'requiere' : 'requieren'} tu revisión`}><span className="attention-icon"><ScanEye size={20} /></span><strong>{reviewCount}</strong><span>{reviewCount === 1 ? 'requiere' : 'requieren'}<br />tu revisión</span></div></section><QueueView repos={repos} allPrs={allPrs} visiblePrs={visiblePrs} sortedPrs={sortedPrs} statusCounts={statusCounts} session={session} filterRepo={filterRepo} filterLifecycle={filterLifecycle} filterReview={filterReview} setFilterRepo={setFilterRepo} setFilterLifecycle={setFilterLifecycle} setFilterReview={setFilterReview} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenPreparation={() => onViewChange('authors')} onReset={onResetFilters} onRetry={onRefresh} onLoadMore={onLoadMore} highlightedPrKey={highlightedPrKey} visibleLimit={visibleLimit} errorCount={errorCount} allRepositoriesFailed={allRepositoriesFailed} fetching={fetching} initialLoading={initialLoading} loadingIsSlow={loadingIsSlow} isOnline={isOnline} fetchedRepositories={fetchedRepositories} repositoryCount={repositoryCount} loadingProgress={loadingProgress} /></> : activeView === 'summary' && showPersonalTools ? <SummaryView repos={repos} session={session} range={layout.summaryRange} onRangeChange={layout.onSummaryRangeChange} /> : <AuthorsView prs={allPrs} repos={repos} setRepos={layout.setRepos} settings={gitWorkflowSettings} onChange={onGitWorkflowSettingsChange} showRules={showPersonalTools} />}</m.div></AnimatePresence></Suspense></main>
 }
 
 function ViewLoading({ label }: { label: string }) {
   return <div className="view-loading" role="status" aria-label={label}><span className="loading-orbit" aria-hidden="true" /><strong>{label}</strong><small>Preparando la vista…</small></div>
 }
 
-function DashboardMobileNav({ activeView, onViewChange, reviewCount, onOpenSettings }: Pick<DashboardLayoutProps, 'activeView' | 'onViewChange' | 'reviewCount' | 'onOpenSettings'>) {
-  return <nav className="mobile-bottom-nav" aria-label="Navegación principal móvil"><button type="button" className={activeView === 'queue' ? 'is-active' : ''} onClick={() => onViewChange('queue')}><GitPullRequest size={19} /><span>Cola</span>{reviewCount > 0 && <b>{reviewCount}</b>}</button><button type="button" className={activeView === 'summary' ? 'is-active' : ''} onClick={() => onViewChange('summary')}><ScanEye size={19} /><span>Resumen</span></button><button type="button" className={activeView === 'authors' ? 'is-active' : ''} onClick={() => onViewChange('authors')}><GitBranch size={19} /><span>Preparar</span></button><button type="button" onClick={onOpenSettings}><Settings2 size={19} /><span>Más</span></button></nav>
+function DashboardMobileNav({ session, activeView, onViewChange, reviewCount, onOpenSettings }: Pick<DashboardLayoutProps, 'session' | 'activeView' | 'onViewChange' | 'reviewCount' | 'onOpenSettings'>) {
+  return <nav className="mobile-bottom-nav" aria-label="Navegación principal móvil"><button type="button" className={activeView === 'queue' ? 'is-active' : ''} onClick={() => onViewChange('queue')}><GitPullRequest size={19} /><span>Cola</span>{reviewCount > 0 && <b>{reviewCount}</b>}</button>{hasPersonalAccess(session) && <button type="button" className={activeView === 'summary' ? 'is-active' : ''} onClick={() => onViewChange('summary')}><ScanEye size={19} /><span>Resumen</span></button>}<button type="button" className={activeView === 'authors' ? 'is-active' : ''} onClick={() => onViewChange('authors')}><GitBranch size={19} /><span>Preparar</span></button><button type="button" onClick={onOpenSettings}><Settings2 size={19} /><span>Más</span></button></nav>
 }
 
 function DashboardSettings({ layout }: { layout: DashboardLayoutProps }) {
@@ -156,7 +168,7 @@ function DashboardLayout(layoutProps: DashboardLayoutProps) {
     <a className="skip-link" href="#main-content">Saltar a la cola</a>
     <DashboardHeader session={layoutProps.session} activeView={layoutProps.activeView} onViewChange={layoutProps.onViewChange} reviewCount={layoutProps.reviewCount} fetching={layoutProps.fetching} isOnline={layoutProps.isOnline} allRepositoriesFailed={layoutProps.allRepositoriesFailed} errorCount={layoutProps.errorCount} latestSync={layoutProps.latestSync} onRefresh={layoutProps.onRefresh} notificationCenter={layoutProps.notificationCenter} settingsTriggerRef={layoutProps.settingsTriggerRef} onOpenSettings={layoutProps.onOpenSettings} />
     <DashboardMain layout={layoutProps} />
-    <DashboardMobileNav activeView={layoutProps.activeView} onViewChange={layoutProps.onViewChange} reviewCount={layoutProps.reviewCount} onOpenSettings={layoutProps.onOpenSettings} />
+    <DashboardMobileNav session={layoutProps.session} activeView={layoutProps.activeView} onViewChange={layoutProps.onViewChange} reviewCount={layoutProps.reviewCount} onOpenSettings={layoutProps.onOpenSettings} />
     <DashboardSettings layout={layoutProps} />
   </div>
 }
@@ -174,6 +186,12 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
   const [gitWorkflowSettings, setGitWorkflowSettings] = useState<GitWorkflowSettings>(() => getGitWorkflowSettings())
   const [showSettings, setShowSettings] = useState(false)
   const [activeView, setActiveView] = useState<AppView>('queue')
+  const showPersonalTools = hasPersonalAccess(session)
+  const changeView = useCallback((view: AppView) => {
+    if (view === 'summary' && !showPersonalTools) return
+    setActiveView(view)
+  }, [showPersonalTools])
+  const [summaryRange, setSummaryRange] = useState<DateRange>(() => rangeFor('month'))
   const [highlightedPrKey, setHighlightedPrKey] = useState<string | null>(null)
   const [loadingIsSlow, setLoadingIsSlow] = useState(false)
   const settingsTriggerRef = useRef<HTMLButtonElement>(null)
@@ -182,8 +200,9 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
   const isOnline = useOnlineStatus()
 
   const updateGitWorkflowSettings = useCallback((settings: GitWorkflowSettings) => {
+    if (!saveGitWorkflowSettings(settings)) return false
     setGitWorkflowSettings(settings)
-    saveGitWorkflowSettings(settings)
+    return true
   }, [])
 
   useEffect(() => {
@@ -240,8 +259,9 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
   }, [initialLoading, isOnline])
 
   const updatePreferences = (next: NotificationPreferences) => {
+    if (!saveNotificationPreferences(next)) return false
     setPreferences(next)
-    saveNotificationPreferences(next)
+    return true
   }
 
   const testSound = () => {
@@ -253,8 +273,7 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
     audioContextRef.current = context
     void context.resume()
     playSound()
-    updatePreferences({ ...preferences, sound: true })
-    toast.success('Sonido activado')
+    if (updatePreferences({ ...preferences, sound: true })) toast.success('Sonido activado')
   }
 
   const requestDesktop = async () => {
@@ -266,8 +285,7 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
       ? await Notification.requestPermission()
       : Notification.permission
     if (permission === 'granted') {
-      updatePreferences({ ...preferences, desktop: true })
-      toast.success('Notificaciones del sistema activadas')
+      if (updatePreferences({ ...preferences, desktop: true })) toast.success('Notificaciones del sistema activadas')
       return
     }
     toast.error('El navegador no concedió permiso para las notificaciones.')
@@ -324,7 +342,9 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
     session={session}
     repos={repos}
     activeView={activeView}
-    onViewChange={setActiveView}
+    summaryRange={summaryRange}
+    onSummaryRangeChange={setSummaryRange}
+    onViewChange={changeView}
     reviewCount={reviewCount}
     fetching={fetching}
     isOnline={isOnline}

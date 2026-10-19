@@ -2,19 +2,18 @@ import type { ActivityUser, DeveloperActivityKind, LifecycleStatus, Participant,
 
 const normalizeName = (name?: string) => name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
 
-const hasIdentifiableUser = (user?: ActivityUser) => Boolean(user?.uuid || user?.display_name)
-
-const matchesActivityUser = (user: ActivityUser | undefined, participant: Participant) => {
-  if (participant.user?.uuid) return user?.uuid === participant.user.uuid
-  const participantName = normalizeName(participant.user?.display_name)
-  return Boolean(participantName && normalizeName(user?.display_name) === participantName)
+const matchesIdentity = (
+  user: ActivityUser | undefined,
+  identity: { uuid?: string; display_name?: string; nickname?: string } | undefined,
+) => {
+  if (identity?.uuid && user?.uuid) return user.uuid === identity.uuid
+  const userName = normalizeName(user?.display_name)
+  return Boolean(userName && [identity?.display_name, identity?.nickname].some((name) => normalizeName(name) === userName))
 }
 
-const matchesPullRequestAuthor = (pr: PullRequest, user?: ActivityUser) => Boolean(
-  (pr.author?.uuid && user?.uuid === pr.author.uuid)
-  || (pr.author?.display_name && normalizeName(user?.display_name) === normalizeName(pr.author.display_name))
-  || (pr.author?.nickname && normalizeName(user?.display_name) === normalizeName(pr.author.nickname)),
-)
+const matchesActivityUser = (user: ActivityUser | undefined, participant: Participant) => matchesIdentity(user, participant.user)
+
+const matchesPullRequestAuthor = (pr: PullRequest, user?: ActivityUser) => matchesIdentity(user, pr.author)
 
 const activityDate = (item: PullRequestActivity) => item.update?.date || item.comment?.updated_on || item.comment?.created_on || item.approval?.date
 
@@ -53,8 +52,57 @@ function getReviewEvidence(pr: PullRequest, reviewDate?: string, matchesUser?: (
     return Boolean(date && new Date(date).getTime() > reviewTimestamp)
   })
   const developerActivityAfterReview = activityAfterReview.filter((item) => matchesPullRequestAuthor(pr, item.update?.author || item.comment?.user))
-  const hasDeveloperCommit = developerActivityAfterReview.some((item) => Boolean(item.update?.source?.commit?.hash))
   const hasDeveloperComment = developerActivityAfterReview.some((item) => Boolean(item.comment && !item.comment.deleted))
+  const updateEvents = (pr.activity || []).filter((item) => item.update?.date)
+
+  if (updateEvents.length) {
+    const knownUpdates = updateEvents
+      .filter((item) => item.update?.source?.commit?.hash)
+      .sort((first, second) => new Date(first.update!.date!).getTime() - new Date(second.update!.date!).getTime())
+    const updatesBeforeReview = knownUpdates.filter((item) => new Date(item.update!.date!).getTime() <= reviewTimestamp)
+    const baseline = updatesBeforeReview[updatesBeforeReview.length - 1]?.update?.source?.commit?.hash
+    const latestCommit = knownUpdates[knownUpdates.length - 1]?.update?.source?.commit?.hash
+
+      if (!baseline) {
+        if (!knownUpdates.length) {
+          if (hasDeveloperComment) return { hasNewActivity: true, confidence: 'confirmed', reason: 'developer_activity_after_review', latestDeveloperActivity: 'comment' }
+          return { hasNewActivity: false, confidence: 'unknown', reason: 'activity_incomplete', latestCommit }
+        }
+        const latestReviewerActivity = matchesUser ? latestReviewDate(pr, matchesUser) : undefined
+        const hasNewTimestamp = new Date(pr.updated_on).getTime() > reviewTimestamp
+        if (latestReviewerActivity && new Date(latestReviewerActivity).getTime() >= new Date(pr.updated_on).getTime()) return { hasNewActivity: false, confidence: 'inferred', reason: 'reviewer_activity_after_review', latestCommit }
+        const hasDeveloperCommit = developerActivityAfterReview.some((item) => Boolean(item.update?.source?.commit?.hash))
+        if (hasDeveloperComment || hasDeveloperCommit) return {
+          hasNewActivity: true,
+          confidence: hasDeveloperCommit ? 'inferred' : 'confirmed',
+          reason: 'developer_activity_after_review',
+          latestCommit,
+          latestDeveloperActivity: hasDeveloperCommit && hasDeveloperComment ? 'commit_and_comment' : hasDeveloperCommit ? 'commit' : 'comment',
+        }
+        return { hasNewActivity: hasNewTimestamp, confidence: hasNewTimestamp ? 'inferred' : 'unknown', reason: hasNewTimestamp ? 'updated_after_review' : 'activity_incomplete', latestCommit }
+      }
+
+    const hasNewCommit = knownUpdates.some((item) => {
+      const update = item.update
+      return Boolean(update
+        && new Date(update.date!).getTime() > reviewTimestamp
+        && update.source?.commit?.hash !== baseline
+        && update.source?.commit?.hash)
+    })
+    if (!hasNewCommit && hasDeveloperComment) {
+      return { hasNewActivity: true, confidence: 'confirmed', reason: 'developer_activity_after_review', reviewedCommit: baseline, latestCommit, latestDeveloperActivity: 'comment' }
+    }
+    return {
+      hasNewActivity: hasNewCommit,
+      confidence: 'confirmed',
+      reason: hasNewCommit ? 'new_commit_after_review' : 'same_commit_after_review',
+      reviewedCommit: baseline,
+      latestCommit,
+      latestDeveloperActivity: hasNewCommit ? (hasDeveloperComment ? 'commit_and_comment' : 'commit') : undefined,
+    }
+  }
+
+  const hasDeveloperCommit = developerActivityAfterReview.some((item) => Boolean(item.update?.source?.commit?.hash))
   const latestDeveloperActivity = hasDeveloperCommit && hasDeveloperComment
     ? 'commit_and_comment'
     : hasDeveloperCommit
@@ -66,44 +114,9 @@ function getReviewEvidence(pr: PullRequest, reviewDate?: string, matchesUser?: (
   if (latestDeveloperActivity) {
     return {
       hasNewActivity: true,
-      confidence: 'confirmed',
+      confidence: hasDeveloperCommit ? 'inferred' : 'confirmed',
       reason: 'developer_activity_after_review',
       latestDeveloperActivity,
-    }
-  }
-
-  const updateEvents = (pr.activity || []).filter((item) => item.update?.date)
-
-  if (updateEvents.length) {
-    const knownUpdates = updateEvents
-      .filter((item) => item.update?.source?.commit?.hash)
-      .sort((first, second) => new Date(first.update!.date!).getTime() - new Date(second.update!.date!).getTime())
-    const updatesBeforeReview = knownUpdates.filter((item) => new Date(item.update!.date!).getTime() <= reviewTimestamp)
-    const baseline = updatesBeforeReview[updatesBeforeReview.length - 1]?.update?.source?.commit?.hash
-    const latestCommit = knownUpdates[knownUpdates.length - 1]?.update?.source?.commit?.hash
-
-    if (!baseline) {
-      if (!knownUpdates.length) return { hasNewActivity: false, confidence: 'unknown', reason: 'activity_incomplete', latestCommit }
-      const latestReviewerActivity = matchesUser ? latestReviewDate(pr, matchesUser) : undefined
-      const hasNewTimestamp = new Date(pr.updated_on).getTime() > reviewTimestamp
-      if (latestReviewerActivity && new Date(latestReviewerActivity).getTime() >= new Date(pr.updated_on).getTime()) return { hasNewActivity: false, confidence: 'inferred', reason: 'reviewer_activity_after_review', latestCommit }
-      return { hasNewActivity: hasNewTimestamp, confidence: hasNewTimestamp ? 'inferred' : 'unknown', reason: hasNewTimestamp ? 'updated_after_review' : 'activity_incomplete', latestCommit }
-    }
-
-    const hasNewCommit = knownUpdates.some((item) => {
-      const update = item.update
-      return Boolean(update
-        && new Date(update.date!).getTime() > reviewTimestamp
-        && update.source?.commit?.hash !== baseline
-        && hasIdentifiableUser(update.author)
-        && (matchesPullRequestAuthor(pr, update.author) || (!pr.author?.uuid && !pr.author?.display_name && !pr.author?.nickname && !matchesUser?.(update.author))))
-    })
-    return {
-      hasNewActivity: hasNewCommit,
-      confidence: 'confirmed',
-      reason: hasNewCommit ? 'new_commit_after_review' : 'same_commit_after_review',
-      reviewedCommit: baseline,
-      latestCommit,
     }
   }
 
@@ -131,10 +144,7 @@ export function getLifecycleStatus(pr: PullRequest): LifecycleStatus {
 }
 
 export function getReviewerState(pr: PullRequest, displayName: string, uuid?: string): ReviewerState | null {
-  const matchesUser = (user?: ActivityUser) => Boolean(
-    (uuid && user?.uuid === uuid)
-    || normalizeName(user?.display_name) === normalizeName(displayName),
-  )
+  const matchesUser = (user?: ActivityUser) => matchesIdentity(user, { uuid, display_name: displayName })
   const participant = pr.participants?.find((item) => matchesUser(item.user))
   const reviewDate = latestReviewDate(pr, matchesUser)
 
@@ -163,10 +173,7 @@ export function getReviewDecision(pr: PullRequest, myUuid?: string, myDisplayNam
   if (waitingForDeveloper) return decision('waiting', 'waiting_for_developer', 'confirmed')
   if (!myUuid && !myDisplayName) return decision('unreviewed', 'reviewer_not_identified', 'unknown')
 
-  const matchesUser = (user?: ActivityUser) => Boolean(
-    (myUuid && user?.uuid === myUuid)
-    || (myDisplayName && normalizeName(user?.display_name) === normalizeName(myDisplayName)),
-  )
+  const matchesUser = (user?: ActivityUser) => matchesIdentity(user, { uuid: myUuid, display_name: myDisplayName })
   const participant = pr.participants?.find((item) => matchesUser(item.user))
   const reviewDate = latestReviewDate(pr, matchesUser)
 

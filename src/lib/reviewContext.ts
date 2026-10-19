@@ -1,6 +1,6 @@
 import { getLifecycleStatus, getReviewDecision, getReviewerState, isFreshPullRequest } from './pullRequestReviewState'
 import { displayName, requiresReview } from './dashboard'
-import type { AppliedReviewRule, AppliedRulepack, PullRequest, PullRequestActivity, RepoConfig, ReviewContext, ReviewContextActivity, Session } from '../types'
+import type { AppliedReviewRule, AppliedRulepack, PullRequest, PullRequestActivity, RepoConfig, ReviewContext, ReviewContextActivity, ReviewContextComment, ReviewContextReply, Session } from '../types'
 
 type ReviewContextDetails = Pick<ReviewContext, 'commits' | 'changedFiles' | 'diffstat' | 'comments'> & {
   activity: PullRequestActivity[]
@@ -9,6 +9,27 @@ type ReviewContextDetails = Pick<ReviewContext, 'commits' | 'changedFiles' | 'di
 
 const activityDate = (item: PullRequestActivity) => item.update?.date || item.comment?.updated_on || item.comment?.created_on || item.approval?.date
 const activityActor = (item: PullRequestActivity) => item.update?.author?.display_name || item.comment?.user?.display_name || item.approval?.user?.display_name
+const normalizeIdentity = (value?: string) => value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
+
+function pendingRepliesToCurrentUser(comments: ReviewContextComment[], session: Session, reviewDate?: string): ReviewContextReply[] {
+  const commentsById = new Map<number, ReviewContextComment>()
+  comments.forEach((comment) => { if (comment.id !== undefined) commentsById.set(comment.id, comment) })
+  const currentUserName = normalizeIdentity(session.displayName)
+  const isCurrentUser = (comment: ReviewContextComment) => {
+    if (session.uuid && comment.authorUuid) return session.uuid === comment.authorUuid
+    return Boolean(currentUserName && normalizeIdentity(comment.author) === currentUserName)
+  }
+  const lastReviewTimestamp = reviewDate ? new Date(reviewDate).getTime() : undefined
+
+  return comments.flatMap((reply) => {
+    if (reply.parentId === undefined || !reply.id || !reply.date || isCurrentUser(reply)) return []
+    const originalComment = commentsById.get(reply.parentId)
+    const replyTimestamp = new Date(reply.date).getTime()
+    if (!originalComment || !isCurrentUser(originalComment)) return []
+    if (lastReviewTimestamp !== undefined && (!Number.isFinite(replyTimestamp) || replyTimestamp <= lastReviewTimestamp)) return []
+    return [{ originalComment, reply }]
+  }).sort((first, second) => new Date(first.reply.date || 0).getTime() - new Date(second.reply.date || 0).getTime())
+}
 
 function normalizeActivity(pr: PullRequest, activity: PullRequestActivity[]): ReviewContextActivity[] {
   const result: ReviewContextActivity[] = [
@@ -33,11 +54,12 @@ function normalizeActivity(pr: PullRequest, activity: PullRequestActivity[]): Re
 
 export function buildReviewContext(pr: PullRequest, session: Session, details: ReviewContextDetails, rulepacks: AppliedRulepack[] = [], rules: AppliedReviewRule[] = []): ReviewContext {
   const identity = displayName(session.displayName, session.email)
-  const status = getReviewDecision(pr, session.uuid, session.displayName).status
+  const reviewDecision = getReviewDecision(pr, session.uuid, session.displayName)
+  const status = reviewDecision.status
   const activity = normalizeActivity(pr, details.activity)
   const isRevisit = Boolean(getReviewerState(pr, identity, session.uuid))
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     repository: {
       workspace: pr.repo.workspace,
       repository: pr.repo.repo,
@@ -62,6 +84,7 @@ export function buildReviewContext(pr: PullRequest, session: Session, details: R
       requiresReview: requiresReview(pr, session.uuid, session.displayName),
       isRevisit,
       status,
+      reviewDate: reviewDecision.reviewDate,
       lastRelevantActivity: activity[activity.length - 1],
     },
     commits: details.commits,
@@ -71,6 +94,7 @@ export function buildReviewContext(pr: PullRequest, session: Session, details: R
       totalChanges: details.diffstat.additions + details.diffstat.deletions,
     },
     comments: details.comments,
+    pendingCommentReplies: pendingRepliesToCurrentUser(details.comments, session, reviewDecision.reviewDate),
     activity,
     unavailable: details.unavailable,
     rulepacks,
@@ -138,6 +162,16 @@ export function buildReviewContextMarkdown(context: ReviewContext) {
     '## Review comments',
     '',
     context.comments.length ? context.comments.map((comment) => `- **${markdownValue(comment.author)}**${comment.parentId ? ' · respuesta' : ''}${comment.date ? ` · ${comment.date}` : ''}${comment.path ? ` · ${markdownCode(`${comment.path}${comment.line ? `:${comment.line}` : ''}`)}` : ''}: ${comment.content}`).join('\n') : 'No hay comentarios disponibles.',
+    '',
+    '## Respuestas a tus comentarios posteriores a la última revisión registrada',
+    '',
+    context.reviewState.reviewDate
+      ? context.pendingCommentReplies.length
+        ? context.pendingCommentReplies.map(({ originalComment, reply }) => `- **Respuesta de ${markdownValue(reply.author)}**${reply.date ? ` · ${reply.date}` : ''}${reply.path ? ` · ${markdownCode(`${reply.path}${reply.line ? `:${reply.line}` : ''}`)}` : ''}\n  - Tu comentario: ${originalComment.content}\n  - Respuesta: ${reply.content}`).join('\n')
+        : 'No hay respuestas posteriores a tu última revisión registrada.'
+      : context.pendingCommentReplies.length
+        ? `No hay una revisión tuya registrada para saber si ya las viste; se incluyen respuestas a tus comentarios para que las revises.\n\n${context.pendingCommentReplies.map(({ originalComment, reply }) => `- **Respuesta de ${markdownValue(reply.author)}**${reply.date ? ` · ${reply.date}` : ''}${reply.path ? ` · ${markdownCode(`${reply.path}${reply.line ? `:${reply.line}` : ''}`)}` : ''}\n  - Tu comentario: ${originalComment.content}\n  - Respuesta: ${reply.content}`).join('\n')}`
+        : 'No hay una revisión tuya registrada; no se puede determinar cuáles respuestas son nuevas.',
     '',
     '## Relevant activity',
     '',
@@ -219,6 +253,7 @@ export function buildCodexPreparation(context: ReviewContext) {
     'Quiero que revises este Pull Request dentro de la carpeta del proyecto.',
     'Respeta las reglas y las tecnologías indicadas. No realices cambios en el código.',
     'Prioriza bugs, regresiones, seguridad, compatibilidad, rendimiento y problemas funcionales.',
+    'Si hay respuestas a comentarios tuyos posteriores a la última revisión registrada, compara cada respuesta con el comentario original y el código actual. Verifica con evidencia si la observación quedó resuelta; no lo asumas solo por la respuesta.',
     'No modernices el proyecto fuera del alcance del PR ni reportes problemas puramente cosméticos.',
     '',
     buildReviewContextMarkdown(context),

@@ -80,7 +80,7 @@ function SyncGuide({ repos }: { repos: RepoConfig[] }) {
         <li><strong>Entra a la carpeta clonada</strong><CommandRow command={`cd ${first?.repo || 'repositorio'}`} /></li>
         <li><strong>Agrega los remotos de autores desde la pestaña Repositorios</strong><span className="setup-step-note">Copia el comando de cada autor que necesites revisar.</span></li>
         <li><strong>Comprueba si existe el comando de sincronización</strong><CommandRow command="git config --global --get alias.sync-remotes" /></li>
-        <li><strong>Créalo si no aparece ningún resultado</strong><CommandRow command={'git config --global alias.sync-remotes "!f() { git remote | while read remote; do git fetch \\"$remote\\"; done; }; f"'} /></li>
+        <li><strong>Créalo si no aparece ningún resultado</strong><CommandRow command={"git config --global alias.sync-remotes '!f() { git remote | while read remote; do git fetch \"$remote\"; done; }; f'"} /></li>
         <li><strong>Actualiza todos los remotos</strong><CommandRow command="git sync-remotes" /></li>
         <li><strong>Verifica los remotos configurados</strong><CommandRow command="git remote -v" /></li>
       </ol>
@@ -95,12 +95,15 @@ function findDeveloperRemote(pr: PullRequest, mappings: DeveloperRemote[]) {
 
 type RuleDraft = { name: string; category: 'general' | 'technology' | 'framework' | 'project'; version: string; technology: string; description: string; content: string }
 const emptyRuleDraft: RuleDraft = { name: '', category: 'general', version: '1.0.0', technology: '', description: '', content: '' }
-const validateRuleShape = (rule: ReviewRule) => Boolean(rule.id && rule.name && rule.version && rule.source === 'local' && validateRuleMetadata(rule).length === 0)
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value && typeof value === 'object' && !Array.isArray(value))
+const validateRuleShape = (value: unknown): value is ReviewRule => isRecord(value)
+  && value.source === 'local' && typeof value.version === 'string' && Boolean(value.version.trim())
+  && validateRuleMetadata(value).length === 0
 type GlobalAuthor = { sample: PullRequest; prs: PullRequest[] }
 
-function AuthorTable({ authors, settings, ignoredAuthors, onUpdateAuthor, onToggleIgnored }: { authors: GlobalAuthor[]; settings: GitWorkflowSettings; ignoredAuthors: ReadonlySet<string>; onUpdateAuthor: (pr: PullRequest, remote: string) => void; onToggleIgnored: (name: string) => void }) {
-  return <table className="setup-author-table" aria-label="Autores y remotos locales">
-    <thead className="setup-table-head"><tr><th scope="col">Autor</th><th scope="col">Actividad</th><th scope="col">Repositorios</th><th scope="col">Remoto local</th><th scope="col">Acciones</th></tr></thead>
+function AuthorTable({ authors, settings, ignoredAuthors, onUpdateAuthor, onToggleIgnored, showRemoteColumn }: { authors: GlobalAuthor[]; settings: GitWorkflowSettings; ignoredAuthors: ReadonlySet<string>; onUpdateAuthor: (pr: PullRequest, remote: string) => boolean; onToggleIgnored: (name: string) => void; showRemoteColumn: boolean }) {
+  return <table className="setup-author-table" aria-label={showRemoteColumn ? 'Autores y remotos locales' : 'Autores'}>
+    <thead className="setup-table-head"><tr><th scope="col">Autor</th><th scope="col">Actividad</th><th scope="col">Repositorios</th>{showRemoteColumn && <th scope="col">Remoto local</th>}<th scope="col">Acciones</th></tr></thead>
     <tbody>{authors.map(({ sample, prs: authorPrs }) => {
       const name = authorName(sample)
       const remote = findDeveloperRemote(sample, settings.developerRemotes)
@@ -109,7 +112,7 @@ function AuthorTable({ authors, settings, ignoredAuthors, onUpdateAuthor, onTogg
         <td className="setup-global-identity"><Avatar name={name} size="small" /><span><strong>{name}</strong><small>{authorRepos.length} repositorio{authorRepos.length === 1 ? '' : 's'} asociado{authorRepos.length === 1 ? '' : 's'}</small></span></td>
         <td className="setup-activity"><GitPullRequest size={14} /><strong>{authorPrs.length}</strong><small>PR asociados</small></td>
         <td className="setup-repo-links">{authorRepos.map((repository) => <a href={`https://bitbucket.org/${repository}`} target="_blank" rel="noreferrer" key={repository}>{repository.split('/')[1] || repository}<ExternalLink size={12} /></a>)}</td>
-        <td><label className="setup-remote-cell"><span>Alias local</span><input value={remote} onChange={(event) => onUpdateAuthor(sample, event.target.value)} onBlur={(event) => { onUpdateAuthor(sample, event.target.value); toast.success(`Remoto local “${event.target.value || suggestedRemote(name)}” guardado`) }} placeholder={suggestedRemote(name)} /><small>{remote ? 'Configurado y disponible para generar comandos' : `Sugerencia de la app: ${suggestedRemote(name)} · aún no guardado`}</small></label><small className="setup-remote-hint">Se usará en los comandos de la pestaña Repositorios</small></td>
+        {showRemoteColumn && <td><label className="setup-remote-cell"><span>Alias local</span><input value={remote} onChange={(event) => onUpdateAuthor(sample, event.target.value)} onBlur={(event) => { if (onUpdateAuthor(sample, event.target.value)) toast.success(`Remoto local “${event.target.value || suggestedRemote(name)}” guardado`) }} placeholder={suggestedRemote(name)} /><small>{remote ? 'Configurado y disponible para generar comandos' : `Sugerencia de la app: ${suggestedRemote(name)} · aún no guardado`}</small></label><small className="setup-remote-hint">Se usará en los comandos de la pestaña Repositorios</small></td>}
         <td className="setup-global-actions"><a className="button button-ghost" href={sourceUrl(sample)} target="_blank" rel="noreferrer">Ver repositorio <ExternalLink size={13} /></a><button type="button" className="button button-ghost" onClick={() => onToggleIgnored(name)}>{ignoredAuthors.has(normalize(name)) ? <><Check size={14} /> Activar autor</> : <><ShieldOff size={14} /> Ignorar autor</>}</button></td>
       </tr>
     })}</tbody>
@@ -128,18 +131,19 @@ function RuleLibraryPanel({ repos, selectedRepoKey, rules, customRules, onSelect
   const selectedReferences = new Set(selectedRepo ? resolveRulesForRepository(selectedRepo, customRules).rules.map((rule) => rule.reference) : [])
   const submit = () => {
     if (!draft.name.trim() || !draft.description.trim() || !draft.content.trim()) return toast.error('Completa nombre, descripción y contenido de la regla.')
-    const id = editingId || `${draft.name}-${Date.now()}`.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    const editingRule = customRules.find((rule) => `${rule.id}@${rule.version || '1.0.0'}` === editingId)
+    const id = editingRule?.id || `${draft.name}-${Date.now()}`.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
     onSaveRule({ id, name: draft.name.trim(), category: draft.category, version: draft.version.trim() || '1.0.0', technology: draft.technology.trim() || undefined, description: draft.description.trim(), content: draft.content.trim(), source: 'local' }, editingId || undefined)
     setDraft(emptyRuleDraft)
     setEditingId('')
     setEditorOpen(false)
   }
-  const edit = (rule: ReviewRule) => { setEditingId(rule.id); setDraft({ name: rule.name, category: rule.category, version: rule.version || '1.0.0', technology: rule.technology || '', description: rule.description, content: rule.content }); setEditorOpen(true) }
+  const edit = (rule: ReviewRule) => { setEditingId(`${rule.id}@${rule.version || '1.0.0'}`); setDraft({ name: rule.name, category: rule.category, version: rule.version || '1.0.0', technology: rule.technology || '', description: rule.description, content: rule.content }); setEditorOpen(true) }
   useEffect(() => { if (!editorOpen && !deletingRule) return; const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') { setEditorOpen(false); setDeletingRule(null) } }; window.addEventListener('keydown', onKeyDown); return () => window.removeEventListener('keydown', onKeyDown) }, [deletingRule, editorOpen])
   useEffect(() => { const dialog = editorDialogRef.current; if (editorOpen && dialog && !dialog.open) dialog.showModal(); return () => { if (dialog?.open) dialog.close() } }, [editorOpen])
   useEffect(() => { const dialog = deleteDialogRef.current; if (deletingRule && dialog && !dialog.open) dialog.showModal(); return () => { if (dialog?.open) dialog.close() } }, [deletingRule])
-  const importFile = (file?: File) => { if (!file) return; void file.text().then((text) => { try { const parsed = JSON.parse(text) as { schemaVersion?: number; rules?: ReviewRule[] }; if (parsed.schemaVersion !== 1 || !Array.isArray(parsed.rules)) throw new Error('Formato inválido'); const localRules = parsed.rules.filter((rule) => rule?.source === 'local'); if (localRules.some((rule) => !validateImportedRule(rule))) throw new Error('Hay reglas locales inválidas'); onImportRules(localRules); if (!localRules.length && parsed.rules.some((rule) => rule?.source === 'git')) toast.info('La biblioteca oficial ya está incluida', { description: 'Las reglas versionadas en Git no necesitan importarse.' }) } catch { toast.error('No se pudo importar el archivo', { description: 'Usa un JSON de reglas exportado desde PR Control Room.' }) } }) }
-  const validateImportedRule = (rule: ReviewRule) => validateRuleShape(rule)
+  const importFile = (file?: File) => { if (!file) return; void file.text().then((text) => { try { const parsed: unknown = JSON.parse(text); if (!isRecord(parsed) || parsed.schemaVersion !== 1 || !Array.isArray(parsed.rules)) throw new Error('El archivo no contiene una biblioteca de reglas compatible.'); const rules: unknown[] = parsed.rules; const invalidIndex = rules.findIndex((rule) => !isRecord(rule) || validateRuleMetadata(rule).length > 0 || (rule.source === 'local' && !validateImportedRule(rule))); if (invalidIndex >= 0) { const rule = rules[invalidIndex]; const issues = validateRuleMetadata(rule); throw new Error(`La regla ${invalidIndex + 1} no es válida: ${issues.join(', ') || 'versión local inválida'}.`) } const localRules = rules.filter((rule): rule is ReviewRule => validateImportedRule(rule)); onImportRules(localRules); if (!localRules.length && rules.some((rule) => isRecord(rule) && rule.source === 'git')) toast.info('La biblioteca oficial ya está incluida', { description: 'Las reglas versionadas en Git no necesitan importarse.' }) } catch (reason) { toast.error('No se pudo importar el archivo', { description: reason instanceof Error ? reason.message : 'Usa un JSON de reglas exportado desde PR Control Room.' }) } }) }
+  const validateImportedRule = (rule: unknown) => validateRuleShape(rule)
   return <div className="setup-rules-panel">
     <div className="setup-rules-header"><div><span className="section-kicker">Biblioteca global</span><h2>Reglas reutilizables</h2><p>Las reglas generales se aplican a todos los repositorios; las demás se asignan explícitamente.</p></div><label className="setup-repo-select"><span>Configurar repositorio</span><select value={selectedRepo ? repoKey(selectedRepo) : ''} onChange={(event) => onSelectRepo(event.target.value)} disabled={!repos.length}><option value="">Selecciona un repositorio</option>{repos.map((repo) => <option value={repoKey(repo)} key={repoKey(repo)}>{repoKey(repo)}</option>)}</select></label></div>
     <div className="rule-library-toolbar"><button type="button" className="button button-primary" onClick={() => { setDraft(emptyRuleDraft); setEditingId(''); setEditorOpen(true) }}><Plus size={15} /> Nueva regla</button><button type="button" className="button button-ghost" onClick={onExportRules}><Download size={15} /> Descargar biblioteca</button><button type="button" className="button button-ghost" onClick={() => fileInputRef.current?.click()}><Upload size={15} /> Importar JSON</button><input ref={fileInputRef} type="file" accept="application/json,.json" hidden onChange={(event) => { importFile(event.target.files?.[0]); event.currentTarget.value = '' }} /></div>
@@ -150,7 +154,7 @@ function RuleLibraryPanel({ repos, selectedRepoKey, rules, customRules, onSelect
   </div>
 }
 
-export default function AuthorsView({ prs, repos, setRepos, settings, onChange }: { prs: PullRequest[]; repos: RepoConfig[]; setRepos: (repos: RepoConfig[]) => void; settings: GitWorkflowSettings; onChange: (settings: GitWorkflowSettings) => void }) {
+export default function AuthorsView({ prs, repos, setRepos, settings, onChange, showRules = true }: { prs: PullRequest[]; repos: RepoConfig[]; setRepos: (repos: RepoConfig[]) => void; settings: GitWorkflowSettings; onChange: (settings: GitWorkflowSettings) => boolean; showRules?: boolean }) {
   const [tab, setTab] = useState<SetupTab>('repositories')
   const [selectedRepoKey, setSelectedRepoKey] = useState('')
   const [search, setSearch] = useState('')
@@ -189,7 +193,7 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
     const item = { id: key, displayName: authorName(pr), remote: remote.trim() }
     if (existing >= 0) next[existing] = { ...next[existing], ...item }
     else next.push(item)
-    onChange({ ...settings, developerRemotes: next })
+    return onChange({ ...settings, developerRemotes: next })
   }
 
   const updateTarget = (repo: RepoConfig, remote: string) => {
@@ -199,7 +203,7 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
     const item = { id: index >= 0 ? next[index].id : `repo-${key}`, repository: key, remote: remote.trim() || 'origin' }
     if (index >= 0) next[index] = item
     else next.push(item)
-    onChange({ ...settings, repositoryRemotes: next })
+    return onChange({ ...settings, repositoryRemotes: next })
   }
 
   const addRepo = () => {
@@ -213,8 +217,8 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
       return
     }
     const next = [...repos, nextRepo]
+    if (!saveRepos(next)) return
     setRepos(next)
-    saveRepos(next)
     setRepoDraft({ workspace: '', repo: '' })
     toast.success(`${nextRepo.repo} agregado`, { description: 'Ya está disponible en Preparar.' })
   }
@@ -222,14 +226,13 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
   const removeRepo = (repo: RepoConfig) => {
     const previous = repos
     const next = repos.filter((item) => repoKey(item) !== repoKey(repo))
+    if (!saveRepos(next)) return
     setRepos(next)
-    saveRepos(next)
     toast.success(`${repo.repo} retirado`, {
       action: {
         label: 'Deshacer',
         onClick: () => {
-          setRepos(previous)
-          saveRepos(previous)
+          if (saveRepos(previous)) setRepos(previous)
         },
       },
     })
@@ -241,16 +244,16 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
     if (!draft?.name.trim() || !draft.version.trim()) return toast.error('Completa tecnología y versión.')
     const technology = { id: `${draft.name}-${draft.version}`.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-'), name: draft.name.trim(), version: draft.version.trim(), kind: draft.kind }
     const next = repos.map((item) => repoKey(item) === key ? { ...item, technologies: [...(item.technologies || []).filter((current) => current.id !== technology.id), technology] } : item)
+    if (!saveRepos(next)) return
     setRepos(next)
-    saveRepos(next)
     setTechnologyDrafts((current) => ({ ...current, [key]: { name: '', version: '', kind: 'language' } }))
     toast.success(`${technology.name} ${technology.version} guardado`)
   }
 
   const removeTechnology = (repo: RepoConfig, id: string) => {
     const next = repos.map((item) => repoKey(item) === repoKey(repo) ? { ...item, technologies: (item.technologies || []).filter((technology) => technology.id !== id) } : item)
+    if (!saveRepos(next)) return
     setRepos(next)
-    saveRepos(next)
   }
 
   const toggleRule = (repo: RepoConfig, reference: string) => {
@@ -261,27 +264,30 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
     else selected.add(reference)
     const ruleRefs = availableRules.map((rule) => rule.reference).filter((item) => selected.has(item))
     const next = repos.map((item) => repoKey(item) === repoKey(repo) ? { ...item, ruleRefs, rulepackRefs: [] } : item)
+    if (!saveRepos(next)) return
     setRepos(next)
-    saveRepos(next)
     toast.success(selected.has(reference) ? 'Regla asociada' : 'Regla retirada', { description: `${repo.repo} · ${reference}` })
   }
 
   const saveRule = (rule: ReviewRule, editingId?: string) => {
-    const duplicate = customRules.some((item) => item.id !== editingId && `${item.id}@${item.version || '1.0.0'}` === `${rule.id}@${rule.version || '1.0.0'}`)
+    const nextReference = `${rule.id}@${rule.version || '1.0.0'}`
+    const duplicate = customRules.some((item) => `${item.id}@${item.version || '1.0.0'}` === nextReference && `${item.id}@${item.version || '1.0.0'}` !== editingId)
     if (duplicate) return toast.error('Ya existe una regla con esa referencia.')
-    const current = editingId ? customRules.map((item) => item.id === editingId ? rule : item) : [...customRules, rule]
+    const current = editingId && editingId === nextReference
+      ? customRules.map((item) => `${item.id}@${item.version || '1.0.0'}` === editingId ? rule : item)
+      : [...customRules, rule]
+    if (!saveCustomRules(current)) return
     setCustomRules(current)
-    saveCustomRules(current)
     toast.success(editingId ? 'Regla actualizada' : 'Regla creada', { description: `${rule.name} · ${rule.version || '1.0.0'}` })
   }
 
   const deleteRule = (rule: ReviewRule) => {
-    const next = customRules.filter((item) => item.id !== rule.id)
+    const reference = `${rule.id}@${rule.version || '1.0.0'}`
+    const next = customRules.filter((item) => `${item.id}@${item.version || '1.0.0'}` !== reference)
+    const nextRepos = repos.map((repo) => ({ ...repo, ruleRefs: (repo.ruleRefs || []).filter((item) => item !== reference) }))
+    if (!saveCustomRules(next) || !saveRepos(nextRepos)) return
     setCustomRules(next)
-    saveCustomRules(next)
-    const nextRepos = repos.map((repo) => ({ ...repo, ruleRefs: (repo.ruleRefs || []).filter((reference) => reference !== `${rule.id}@${rule.version || '1.0.0'}`) }))
     setRepos(nextRepos)
-    saveRepos(nextRepos)
     toast.success('Regla eliminada', { description: 'También se retiró de los repositorios donde estaba asociada.' })
   }
 
@@ -303,12 +309,13 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
       if (index >= 0) merged[index] = rule
       else merged.push(rule)
     })
+    if (!saveCustomRules(merged)) return
     setCustomRules(merged)
-    saveCustomRules(merged)
     toast.success('Reglas importadas', { description: `${incoming.length} reglas procesadas.` })
   }
 
   const openRuleConfiguration = (repo: RepoConfig) => {
+    if (!showRules) return
     setSelectedRepoKey(repoKey(repo))
     setTab('rules')
   }
@@ -325,7 +332,7 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
     const nextAuthors = ignoreRules.authors.includes(name)
       ? ignoreRules.authors.filter((item) => item !== name)
       : [...ignoreRules.authors, name]
-    saveIgnoreRules({ ...ignoreRules, authors: nextAuthors })
+    if (!saveIgnoreRules({ ...ignoreRules, authors: nextAuthors })) return
     window.dispatchEvent(new Event('prcr:ignore-rules-changed'))
     setIgnoredRevision((value) => value + 1)
     toast.success(ignoreRules.authors.some((item) => normalize(item) === normalized) ? 'Autor visible nuevamente' : 'Autor ocultado de tu cola')
@@ -339,7 +346,7 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
 
   const reduceMotion = useReducedMotion()
   const tabMotion = reduceMotion ? { initial: false as const, animate: { opacity: 1 }, transition: { duration: 0 } } : { initial: { opacity: 0, y: 7 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -5 }, transition: { duration: .2, ease: 'easeOut' as const } }
-  const tabs: SetupTab[] = ['repositories', 'authors', 'rules']
+  const tabs: SetupTab[] = showRules ? ['repositories', 'authors', 'rules'] : ['repositories', 'authors']
   const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0
     if (!direction) return
@@ -349,8 +356,8 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
     window.requestAnimationFrame(() => document.getElementById(`setup-tab-${nextTab}`)?.focus())
   }
 
-  return <section className="product-view setup-view" aria-labelledby="setup-title">
-    <div className="setup-heading"><div className="setup-heading-copy"><span className="section-kicker">Workspace de revisión</span><h1 id="setup-title">Prepara tu revisión</h1><p>Deja repositorios, reglas y contexto local listos antes de abrir un PR.</p></div><div className="setup-heading-summary" aria-label="Estado de preparación"><div className="setup-summary-item is-primary"><GitBranch size={16} /><strong>{repos.length}</strong><span>repositorios</span></div><div className="setup-summary-item"><UsersRound size={16} /><strong>{globalAuthors.length}</strong><span>autores</span></div><div className="setup-summary-item"><BookOpen size={16} /><strong>{availableRules.length}</strong><span>reglas</span></div></div></div>
+  return <section className="product-view setup-view" data-personal-tools={showRules} aria-labelledby="setup-title">
+    <div className="setup-heading"><div className="setup-heading-copy"><span className="section-kicker">Workspace de revisión</span><h1 id="setup-title">Prepara tu revisión</h1><p>Deja repositorios y contexto local listos antes de abrir un PR.</p></div><div className="setup-heading-summary" aria-label="Estado de preparación"><div className="setup-summary-item is-primary"><GitBranch size={16} /><strong>{repos.length}</strong><span>repositorios</span></div><div className="setup-summary-item"><UsersRound size={16} /><strong>{globalAuthors.length}</strong><span>autores</span></div><div className="setup-summary-item"><BookOpen size={16} /><strong>{availableRules.length}</strong><span>reglas</span></div></div></div>
     <div className="setup-tabs" role="tablist" aria-label="Configuración de entorno">
       <button id="setup-tab-repositories" type="button" role="tab" tabIndex={tab === 'repositories' ? 0 : -1} aria-selected={tab === 'repositories'} aria-controls="setup-panel-repositories" className={tab === 'repositories' ? 'is-active' : ''} onKeyDown={handleTabKeyDown} onClick={() => setTab('repositories')}><PackageOpen size={16} /><span>Repositorios</span><b>{repos.length}</b></button>
       <button id="setup-tab-authors" type="button" role="tab" tabIndex={tab === 'authors' ? 0 : -1} aria-selected={tab === 'authors'} aria-controls="setup-panel-authors" className={tab === 'authors' ? 'is-active' : ''} onKeyDown={handleTabKeyDown} onClick={() => setTab('authors')}><UsersRound size={16} /><span>Autores</span><b>{globalAuthors.length}</b></button>
@@ -359,7 +366,7 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
     <AnimatePresence mode="wait" initial={false}>
       <m.div key={tab} className={`setup-tab-content setup-tab-${tab}`} role="tabpanel" id={`setup-panel-${tab}`} aria-labelledby={`setup-tab-${tab}`} tabIndex={0} {...tabMotion}>
       {tab === 'repositories' ? <div className="setup-repositories-panel">
-      <div className="setup-panel-lead"><span className="setup-panel-lead-icon"><GitFork size={18} /></span><div><strong>Tu espacio de trabajo local</strong><p>Conecta cada repositorio con sus remotos, tecnologías y reglas de revisión.</p></div><span className="setup-panel-state"><Check size={14} /> Configuración local</span></div>
+      <div className="setup-panel-lead"><span className="setup-panel-lead-icon"><GitFork size={18} /></span><div><strong>Tu espacio de trabajo local</strong><p>Conecta cada repositorio con sus remotos y tecnologías.</p></div><span className="setup-panel-state"><Check size={14} /> Configuración local</span></div>
       <SyncGuide repos={repos} />
       <div className="setup-repository-list">
       <form className="setup-add-repository" noValidate onSubmit={(event) => { event.preventDefault(); addRepo() }}>
@@ -367,7 +374,7 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
         <label><span>Repositorio</span><input value={repoDraft.repo} onChange={(event) => setRepoDraft({ ...repoDraft, repo: event.target.value })} placeholder="providers_api" /></label>
         <button className="button button-secondary" type="submit"><Plus size={16} /> Agregar repositorio</button>
       </form>
-      {repoItems.length === 0 ? <div className="empty-state setup-empty"><GitFork size={25} /><h2>Aún no hay repositorios configurados</h2><p>Agrega un repositorio arriba para generar sus comandos locales y asociar sus rulepacks.</p></div> : repoItems.map(({ repo, prs: repoPrs, authors, targetRemote }) => <details className="setup-repository-card" key={repoKey(repo)}>
+      {repoItems.length === 0 ? <div className="empty-state setup-empty"><GitFork size={25} /><h2>Aún no hay repositorios configurados</h2><p>Agrega un repositorio arriba para preparar sus comandos locales y tecnologías.</p></div> : repoItems.map(({ repo, prs: repoPrs, authors, targetRemote }) => <details className="setup-repository-card" key={repoKey(repo)}>
         <summary className="setup-repository-summary"><span className="setup-repository-icon"><GitFork size={17} /></span><span className="setup-repository-title"><strong>{repo.repo}</strong><small>{repo.workspace} · {authors.length} autores detectados</small></span><span className="setup-repository-meta"><span>{repoPrs.length} PR{repoPrs.length === 1 ? '' : 's'}</span><ChevronDown size={17} /></span></summary>
         <div className="setup-repository-body">
           <div className="setup-repository-actions"><span className="setup-card-caption">Configuración local de {repo.repo}</span><button type="button" className="button button-ghost button-danger" onClick={() => removeRepo(repo)}><Trash2 size={14} /> Retirar repositorio</button></div>
@@ -381,7 +388,7 @@ export default function AuthorsView({ prs, repos, setRepos, settings, onChange }
       </div>
     </div> : tab === 'authors' ? <div className="setup-authors-panel">
       <div className="setup-authors-toolbar"><label className="setup-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar autor..." /></label><button type="button" className={`button button-secondary ${showIgnored ? 'is-active' : ''}`} onClick={() => setShowIgnored((value) => !value)}><ShieldOff size={15} /> {showIgnored ? 'Ocultar ignorados' : 'Ver ignorados'}</button></div>
-      <AuthorTable authors={filteredAuthors} settings={settings} ignoredAuthors={ignoredAuthors} onUpdateAuthor={updateAuthor} onToggleIgnored={toggleIgnored} />
+      <AuthorTable authors={filteredAuthors} settings={settings} ignoredAuthors={ignoredAuthors} onUpdateAuthor={updateAuthor} onToggleIgnored={toggleIgnored} showRemoteColumn={showRules} />
       {filteredAuthors.length === 0 && <div className="empty-state setup-empty"><UserRound size={25} /><h2>No hay autores para mostrar</h2><p>Prueba con otra búsqueda o vuelve a activar los autores ignorados.</p></div>}
     </div> : <RuleLibraryPanel repos={repos} selectedRepoKey={selectedRepoKey} rules={availableRules} customRules={customRules} onSelectRepo={setSelectedRepoKey} onToggleRule={toggleRule} onSaveRule={saveRule} onDeleteRule={deleteRule} onImportRules={importRules} onExportRules={exportRules} />}
       </m.div>

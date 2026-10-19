@@ -1,4 +1,5 @@
 import type { RepoConfig, ReviewHistory, ReviewHistoryEvent, ReviewHistoryPullRequest, Session } from '../types'
+import { localDate } from './dateRange'
 
 export type SummaryDateRange = { from: string; to: string }
 export type SummaryEvent = { event: ReviewHistoryEvent; pullRequest: ReviewHistoryPullRequest; repositoryKey: string }
@@ -18,16 +19,15 @@ const repositoryKey = (repo: RepoConfig) => `${repo.workspace}/${repo.repo}`
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase()
 
-const matchesReviewer = (event: ReviewHistoryEvent, session: Session) => Boolean(
-  (session.uuid && event.reviewerUuid === session.uuid)
-  || (event.reviewerName && normalize(event.reviewerName) === normalize(session.displayName || session.email)),
-)
+const matchesReviewer = (event: ReviewHistoryEvent, session: Session) => {
+  if (session.uuid && event.reviewerUuid) return event.reviewerUuid === session.uuid
+  return Boolean(event.reviewerName && normalize(event.reviewerName) === normalize(session.displayName || session.email))
+}
 
 const inRange = (date: string | undefined, range: SummaryDateRange) => Boolean(
-  date && date.slice(0, 10) >= range.from && date.slice(0, 10) <= range.to,
+  date && localDate(new Date(date)) >= range.from && localDate(new Date(date)) <= range.to,
 )
 
-const localDate = (date: Date) => `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`
 const parseDate = (value: string) => { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day) }
 const dayDifference = (from: string, to: string) => Math.round((parseDate(to).getTime() - parseDate(from).getTime()) / 86_400_000)
 
@@ -52,7 +52,7 @@ function activitySeries(events: SummaryEvent[], range: SummaryDateRange): Summar
   })
 
   events.forEach(({ event }) => {
-    const offset = dayDifference(range.from, event.date.slice(0, 10))
+    const offset = dayDifference(range.from, localDate(new Date(event.date)))
     if (offset < 0 || offset >= totalDays) return
     const index = Math.min(bucketCount - 1, Math.floor(offset * bucketCount / totalDays))
     buckets[index].count += 1

@@ -10,7 +10,7 @@ import type {
   RepoConfig,
 } from '../types'
 
-export const PULL_REQUEST_POLL_INTERVAL_MS = 60_000
+export const PULL_REQUEST_POLL_INTERVAL_MS = 10 * 60_000
 
 export type NoticePresentationTone = NoticeKind
   | 'waiting'

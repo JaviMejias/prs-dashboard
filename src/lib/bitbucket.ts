@@ -1,17 +1,53 @@
 import type { ActivityUser, BitbucketUser, PrStats, PullRequest, PullRequestActivity, RepoConfig, ReviewContextComment, ReviewContextCommit, ReviewContextFile, ReviewContextDiffstat, ReviewHistoryPullRequest, Session } from '../types'
+import { summaryDateBounds } from './summaryHistory'
+import type { DateRange } from './dateRange'
 export { classifyPr, getLifecycleStatus, getReviewDecision, getReviewerState, isFreshPullRequest } from './pullRequestReviewState'
 const API = 'https://api.bitbucket.org/2.0'
+const REQUEST_TIMEOUT_MS = 30_000
+export const BITBUCKET_REQUEST_CONCURRENCY = 6
+let activeRequests = 0
+const queuedRequestSlots: Array<() => void> = []
+
+async function acquireRequestSlot() {
+  if (activeRequests >= BITBUCKET_REQUEST_CONCURRENCY) await new Promise<void>((resolve) => queuedRequestSlots.push(resolve))
+  activeRequests += 1
+}
+
+function releaseRequestSlot() {
+  activeRequests -= 1
+  queuedRequestSlots.shift()?.()
+}
+
 const auth = (s: Session) => `Basic ${btoa(`${s.email}:${s.token}`)}`
-async function request<T>(url: string, session: Session): Promise<T> { const response = await fetch(url, { headers: { Authorization: auth(session), Accept: 'application/json' } }); if (!response.ok) throw new Error(response.status === 401 ? 'Credenciales inválidas o expiradas.' : `Bitbucket respondió ${response.status}.`); return response.json() as Promise<T> }
+async function request<T>(url: string, session: Session, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
+  await acquireRequestSlot()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, { headers: { Authorization: auth(session), Accept: 'application/json' }, signal: controller.signal })
+    if (!response.ok) throw new Error(response.status === 401 ? 'Credenciales inválidas o expiradas.' : `Bitbucket respondió ${response.status}.`)
+    return await response.json() as T
+  } catch (reason) {
+    if (controller.signal.aborted) throw new Error('Bitbucket no respondió en 30 segundos. Revisa tu conexión e inténtalo nuevamente.')
+    throw reason
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+    releaseRequestSlot()
+  }
+}
 export const verifyUser = (session: Session) => request<BitbucketUser>(`${API}/user`, session)
 type Page<T> = { values: T[]; next?: string }
-async function allPages<T>(url: string, session: Session, limit = 6) { const items: T[] = []; let next: string | undefined = url; for (let page = 0; next && page < limit; page++) { const result: Page<T> = await request<Page<T>>(next, session); items.push(...(result.values || [])); next = result.next } return items }
-async function allPagesFully<T>(url: string, session: Session, limit = 100) {
+async function allPages<T>(url: string, session: Session, limit = 100) {
+  const result = await allPagesFully<T>(url, session, limit)
+  if (!result.complete) throw new Error(`Bitbucket superó el límite de ${limit} páginas; los datos están incompletos.`)
+  return result.items
+}
+async function allPagesFully<T>(url: string, session: Session, limit = 100, timeoutMs?: number) {
   const items: T[] = []
   let next: string | undefined = url
   let page = 0
   while (next && page < limit) {
-    const result: Page<T> = await request<Page<T>>(next, session)
+    const result: Page<T> = await request<Page<T>>(next, session, timeoutMs)
     items.push(...(result.values || []))
     next = result.next
     page += 1
@@ -19,11 +55,6 @@ async function allPagesFully<T>(url: string, session: Session, limit = 100) {
   return { items, complete: !next }
 }
 const activityFields = 'values.pull_request.id,values.comment.id,values.comment.parent.id,values.comment.created_on,values.comment.updated_on,values.comment.deleted,values.comment.user.uuid,values.comment.user.display_name,values.approval.date,values.approval.user.uuid,values.approval.user.display_name,values.update.date,values.update.author.uuid,values.update.author.display_name,values.update.state,values.update.source.commit.hash,next'
-const activityDate = (item: PullRequestActivity) => item.update?.date || item.comment?.updated_on || item.comment?.created_on || item.approval?.date
-const activityTimestamp = (item: PullRequestActivity) => {
-  const date = activityDate(item)
-  return date ? new Date(date).getTime() : 0
-}
 const normalizedUserName = (name?: string) => name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase().trim()
 const hasReviewHistorySignal = (pr: Omit<PullRequest, 'repo'>, session: Session) => (pr.participants || []).some((participant) => {
   if (participant.state === 'changes_requested') return true
@@ -36,24 +67,15 @@ export async function getPullRequests(repo: RepoConfig, session: Session) {
   const base = `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests`
   const states = ['OPEN', 'MERGED', 'DECLINED']
   const results = (await Promise.all(states.map((state) => allPages<Omit<PullRequest, 'repo'>>(`${base}?state=${state}&pagelen=50&fields=values.id,values.title,values.description,values.state,values.draft,values.queued,values.created_on,values.updated_on,values.author,values.source.branch,values.source.repository.full_name,values.source.repository.links.html,values.destination.branch,values.destination.repository.full_name,values.links.html,values.comment_count,values.participants,next`, session)))).flat()
-  const activity = await allPages<PullRequestActivity>(`${base}/activity?pagelen=50&fields=${activityFields}`, session)
   const activityByPullRequest = new Map<number, PullRequestActivity[]>()
-  activity.forEach((item) => {
-    const id = item.pull_request?.id
-    if (!id) return
-    activityByPullRequest.set(id, [...(activityByPullRequest.get(id) || []), item])
-  })
-
-  const incompleteOpenPullRequests = results.filter((pr) => {
-    if (pr.state !== 'OPEN' || !hasReviewHistorySignal(pr, session)) return false
-    const currentActivity = activityByPullRequest.get(pr.id) || []
-    const latestActivity = Math.max(0, ...currentActivity.map(activityTimestamp))
-    const pullRequestUpdated = new Date(pr.updated_on).getTime()
-    const hasUpdateAtLatestTimestamp = currentActivity.some((item) => item.update?.date && Math.abs(new Date(item.update.date).getTime() - pullRequestUpdated) < 10_000)
-    return !currentActivity.length || pullRequestUpdated > latestActivity + 1_000 || !hasUpdateAtLatestTimestamp
-  })
-  const fallbackActivity = await Promise.all(incompleteOpenPullRequests.map((pr) => allPages<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session)))
-  incompleteOpenPullRequests.forEach((pr, index) => activityByPullRequest.set(pr.id, fallbackActivity[index]))
+  const pullRequestsWithReviewHistory = results.filter((pr) => pr.state === 'OPEN' && hasReviewHistorySignal(pr, session))
+  // The repository-wide feed has no date filter and can require thousands of events.
+  // Load history only for open PRs whose participant data indicates a review matters.
+  for (let index = 0; index < pullRequestsWithReviewHistory.length; index += 4) {
+    const batch = pullRequestsWithReviewHistory.slice(index, index + 4)
+    const activities = await Promise.all(batch.map((pr) => allPages<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session)))
+    batch.forEach((pr, position) => activityByPullRequest.set(pr.id, activities[position]))
+  }
 
   return results.map((pr) => ({ ...pr, activity: activityByPullRequest.get(pr.id) || [], repo }))
 }
@@ -68,9 +90,9 @@ export async function getReviewHistorySnapshot(repo: RepoConfig, session: Sessio
     : pullRequests
   const activityByPullRequest = new Map<number, PullRequestActivity[]>()
   const activityComplete = knownPullRequests
-    ? (await Promise.all(changedPullRequests.map((pr) => allPagesFully<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session)))).every((page, index) => {
-      activityByPullRequest.set(changedPullRequests[index].id, page.items)
-      return page.complete
+    ? await Promise.all(changedPullRequests.map((pr) => allPagesFully<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session))).then((pages) => {
+      pages.forEach((page, index) => activityByPullRequest.set(changedPullRequests[index].id, page.items))
+      return pages.every((page) => page.complete)
     })
     : await allPagesFully<PullRequestActivity>(`${base}/activity?pagelen=50&fields=${activityFields}`, session).then((page) => {
       page.items.forEach((item) => {
@@ -81,6 +103,35 @@ export async function getReviewHistorySnapshot(repo: RepoConfig, session: Sessio
       return page.complete
     })
   return { prs: pullRequests.map((pr) => ({ ...pr, activity: activityByPullRequest.get(pr.id) || [] })), complete: pullRequestPages.every((page) => page.complete) && activityComplete }
+}
+
+export type SummaryActivityPage = { items: PullRequestActivity[]; complete: boolean }
+export type SummaryActivityLoader = (pr: PullRequest, load: () => Promise<SummaryActivityPage>) => Promise<SummaryActivityPage>
+
+export async function getReviewHistoryForRange(repo: RepoConfig, session: Session, range: DateRange, loadActivity: SummaryActivityLoader = (_pr, load) => load()) {
+  const base = `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests`
+  const { start, endExclusive } = summaryDateBounds(range)
+  // A review can precede a later PR update. Never cap updated_on at the period end.
+  const q = `updated_on >= ${start} AND created_on < ${endExclusive}`
+  const fields = 'values.id,values.title,values.state,values.created_on,values.updated_on,values.links.html,values.participants,next'
+  const pages = await Promise.all(['OPEN', 'MERGED', 'DECLINED'].map((state) => {
+    const params = new URLSearchParams({ state, q, pagelen: '50', fields })
+    return allPagesFully<Omit<PullRequest, 'repo'>>(`${base}?${params}`, session, 100, 30_000)
+  }))
+  const prs = Array.from(new Map(pages.flatMap((page) => page.items).map((pr) => [pr.id, { ...pr, repo }])).values())
+  const result: PullRequest[] = []
+  let complete = pages.every((page) => page.complete)
+  // Activity has no documented date-range filter. Bound concurrency, not the event dates.
+  for (let index = 0; index < prs.length; index += 4) {
+    const batch = prs.slice(index, index + 4)
+    const activities = await Promise.all(batch.map((pr) => loadActivity(pr,
+      () => allPagesFully<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session, 100, 30_000))))
+    batch.forEach((pr, position) => {
+      result.push({ ...pr, activity: activities[position].items })
+      if (!activities[position].complete) complete = false
+    })
+  }
+  return { prs: result, complete }
 }
 export async function getStats(pr: PullRequest, session: Session): Promise<PrStats> { const base = `${API}/repositories/${encodeURIComponent(pr.repo.workspace)}/${encodeURIComponent(pr.repo.repo)}/pullrequests/${pr.id}`; const [commits, diff] = await Promise.all([allPages<unknown>(`${base}/commits?pagelen=50`, session), allPages<{ lines_added?: number; lines_removed?: number }>(`${base}/diffstat?pagelen=50`, session)]); return { commits: commits.length, files: diff.length, added: diff.reduce((sum, item) => sum + (item.lines_added || 0), 0), removed: diff.reduce((sum, item) => sum + (item.lines_removed || 0), 0) } }
 
@@ -111,9 +162,10 @@ export async function getReviewContextDetails(pr: PullRequest, session: Session)
     load<PullRequestActivity>(`${base}/activity?pagelen=50&fields=${reviewContextFields.activity}`, 'activity'),
   ])
 
-  const comments = commentsResult.value.map((comment): ReviewContextComment => ({
+  const comments = commentsResult.value.filter((comment) => !comment.deleted).map((comment): ReviewContextComment => ({
     id: comment.id,
     parentId: comment.parent?.id,
+    authorUuid: comment.user?.uuid,
     author: displayActivityUser(comment.user),
     date: comment.updated_on || comment.created_on,
     content: comment.content?.raw || '',
