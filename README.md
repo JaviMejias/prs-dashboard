@@ -223,7 +223,18 @@ indispensable o hay un conflicto real de reglas/versiones, el agente debe pedirl
 Las descripciones compuestas solo por espacios o caracteres Unicode invisibles
 se muestran como «Sin descripción en Bitbucket» sin alterar descripciones útiles.
 
+La instrucción pide cubrir todos los archivos y hunks del diff completo, seguir
+los flujos afectados y hacer pasadas complementarias y una comprobación final
+de omisiones. No establece un cupo de hallazgos ni una cuota mínima: se reportan
+todos los problemas verificables y accionables, sin duplicar la misma causa ni
+inventar observaciones. En seguimiento se verifican las correcciones y el resto
+del diff; pedir otra revisión sigue siendo válido aunque no haya commits nuevos.
+Si una limitación real impide terminar, debe declarar cobertura parcial y lo
+pendiente, no afirmar que revisó todo. Son instrucciones para el agente, no una
+garantía ni una medición automática de exhaustividad por parte de la app.
+
 Conversaciones permite elegir Ronda reciente (aproximada) o Historial completo.
+Esta selección solo acota el texto adjunto; no limita el código que debe revisarse.
 La primera agrupa observaciones propias creadas dentro de los cinco minutos
 anteriores a la última y actividad posterior, conservando completos los hilos
 relacionados, incluso si su comentario original es antiguo. Los comentarios sin

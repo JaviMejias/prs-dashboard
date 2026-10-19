@@ -224,4 +224,45 @@ describe('ReviewContext', () => {
     expect(compact).toContain('posterior a tu participación')
     expect(compact).toContain('un hilo antiguo no significa resuelto')
   })
+
+  it.each([
+    ['compact', 'recent', false], ['compact', 'recent', true],
+    ['compact', 'all', false], ['compact', 'all', true],
+    ['full', 'recent', false], ['full', 'recent', true],
+    ['full', 'all', false], ['full', 'all', true],
+  ] as const)('requires full code coverage without a findings quota in %s/%s (follow-up: %s)', (mode, commentScope, isRevisit) => {
+    const context = buildReviewContext(pr, session, emptyDetails)
+    context.reviewState = { ...context.reviewState, isRevisit, requiresReview: false, reviewedCommit: 'same-commit', latestCommit: 'same-commit' }
+    const prompt = buildCodexPreparation(context, { mode, commentScope })
+    for (const instruction of [
+      'todos los archivos y hunks del diff completo',
+      'no conviertas la revisión en una auditoría global',
+      'pasadas complementarias',
+      'permisos y aislamiento entre tenants',
+      'Antes de entregar, haz una pasada final',
+      'No hay un cupo de hallazgos',
+      'no solo los tres primeros ni únicamente los más graves',
+      'tampoco inventes problemas para llegar a un mínimo',
+      'vuelve a revisar el resto del diff completo',
+      'aunque no haya commits nuevos',
+      'nunca reduce el alcance del código',
+      'declárala como parcial',
+      'archivos o flujos revisados y pendientes',
+      'Entrega primero todos los hallazgos',
+      'No encontré más hallazgos verificables en el alcance revisado',
+      'sin garantizar que el código esté libre de errores',
+      'Solo revisar, sin modificar código',
+      'No publiques, apruebes ni fusiones',
+    ]) expect(prompt).toContain(instruction)
+    expect(prompt.split('## Cobertura y profundidad')).toHaveLength(2)
+    expect(prompt).not.toContain(session.token)
+  })
+
+  it('does not truncate a round with twenty independent review observations', () => {
+    const comments = Array.from({ length: 20 }, (_, index) => ({ id: index + 1, authorUuid: session.uuid, date: '2026-09-14T11:30:00Z', content: `INDEPENDENT-FINDING-${index + 1}.` }))
+    const context = buildReviewContext(pr, session, { ...emptyDetails, comments })
+    const prompt = buildCodexPreparation(context)
+    expect(prompt).toContain('20 de 20 comentarios incluidos')
+    for (const comment of comments) expect(prompt.split(comment.content)).toHaveLength(2)
+  })
 })
