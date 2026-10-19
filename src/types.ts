@@ -49,7 +49,7 @@ export type RepositoryRemote = { id: string; repository: string; remote: string 
 export type GitWorkflowSettings = { developerRemotes: DeveloperRemote[]; repositoryRemotes: RepositoryRemote[]; syncRemotesConfirmed: boolean }
 export type ReviewContextCommit = { hash: string; message: string; author?: string; date?: string; url?: string }
 export type ReviewContextFile = { path: string; status?: string; additions?: number; deletions?: number; changeType?: string }
-export type ReviewContextComment = { id?: number; parentId?: number; authorUuid?: string; author?: string; date?: string; content: string; path?: string; line?: number; url?: string }
+export type ReviewContextComment = { id?: number; parentId?: number; authorUuid?: string; author?: string; createdAt?: string; date?: string; content: string; path?: string; line?: number; url?: string }
 export type ReviewContextReply = { originalComment: ReviewContextComment; reply: ReviewContextComment }
 export type ReviewContextActivity = { type: 'created' | 'updated' | 'comment' | 'approval' | 'changes'; date: string; actor?: string; summary: string }
 export type ReviewContextDiffstat = { files: number; additions: number; deletions: number; totalChanges: number }
@@ -61,6 +61,7 @@ export type AppliedRulepack = Rulepack & { reviewRulesContent: string; testingCo
 export type AppliedReviewRule = ReviewRule & { reference: string }
 export type ReviewContext = {
   schemaVersion: 2
+  reviewer?: { uuid?: string; name?: string }
   repository: { workspace: string; repository: string; friendlyName?: string; url?: string; technologies?: RepositoryTechnology[]; profile?: ProjectProfile; personalPreferences?: PersonalReviewPreferences }
   pullRequest: { id: number; title: string; description?: string; state: LifecycleStatus; draft: boolean; author?: { name?: string; uuid?: string; url?: string }; sourceBranch?: string; targetBranch?: string; createdAt: string; updatedAt: string; url?: string }
   reviewState: ReviewContextReviewState
