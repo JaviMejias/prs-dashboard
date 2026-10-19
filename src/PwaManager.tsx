@@ -1,52 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { Download, RefreshCw, Share2, WifiOff, X } from 'lucide-react'
-import { toast } from 'sonner'
-import { registerSW } from 'virtual:pwa-register'
+import { usePwaUpdate } from './hooks/usePwaUpdate'
 
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-type UpdateServiceWorker = (reloadPage?: boolean) => Promise<void>
-
 const installHintKey = 'prcr:pwa-install-hint-dismissed'
 const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
 const isIosDevice = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
 
 export default function PwaManager() {
-  const [updateAvailable, setUpdateAvailable] = useState(false)
-  const [updating, setUpdating] = useState(false)
+  const { updateAvailable, updating, updateError, applyUpdate } = usePwaUpdate()
   const [online, setOnline] = useState(navigator.onLine)
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
   const [showIosHint, setShowIosHint] = useState(() => isIosDevice() && !isInstalled() && localStorage.getItem(installHintKey) !== 'true')
-  const updateServiceWorkerRef = useRef<UpdateServiceWorker | null>(null)
   const reduceMotion = useReducedMotion()
-
-  useEffect(() => {
-    let registration: ServiceWorkerRegistration | undefined
-    updateServiceWorkerRef.current = registerSW({
-      immediate: true,
-      onNeedRefresh: () => setUpdateAvailable(true),
-      onOfflineReady: () => toast.success('La interfaz ya está disponible sin conexión.'),
-      onRegisteredSW: (_serviceWorkerUrl, currentRegistration) => {
-        registration = currentRegistration
-        void registration?.update()
-      },
-      onRegisterError: (error) => console.error('PWA service worker registration failed', error),
-    })
-
-    const checkForUpdates = () => {
-      if (document.visibilityState === 'visible' && navigator.onLine) void registration?.update()
-    }
-    const updateTimer = window.setInterval(checkForUpdates, 15 * 60 * 1000)
-    document.addEventListener('visibilitychange', checkForUpdates)
-    return () => {
-      window.clearInterval(updateTimer)
-      document.removeEventListener('visibilitychange', checkForUpdates)
-    }
-  }, [])
 
   useEffect(() => {
     const handleOnline = () => setOnline(true)
@@ -67,15 +38,6 @@ export default function PwaManager() {
       window.removeEventListener('appinstalled', clearInstallPrompt)
     }
   }, [])
-
-  const applyUpdate = async () => {
-    setUpdating(true)
-    try {
-      await updateServiceWorkerRef.current?.(true)
-    } finally {
-      setUpdating(false)
-    }
-  }
 
   const installApp = async () => {
     if (!installPrompt) return
@@ -118,7 +80,7 @@ export default function PwaManager() {
             transition={transition}
           >
             <span className="pwa-card-icon"><RefreshCw size={17} className={updating ? 'spin' : ''} /></span>
-            <span><strong>Nueva versión disponible</strong><small>Ya está descargada y lista para usar.</small></span>
+            <span><strong>Nueva versión disponible</strong><small>{updating ? 'Activando la nueva versión…' : 'Ya está descargada y lista para usar.'}</small>{updateError && <small role="alert">{updateError}</small>}</span>
             <button type="button" onClick={applyUpdate} disabled={updating} aria-busy={updating}>{updating ? 'Actualizando…' : 'Actualizar ahora'}</button>
           </m.aside>
         )}

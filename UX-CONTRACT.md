@@ -25,6 +25,7 @@
 | Table Selection | `QueueView` | `src/components/QueueView.tsx` | selección no masiva | foco + responsive |
 | Select/Listbox | Native `<select>` | `AuthorsView` + browser popup | selección nativa | teclado + viewport |
 | Toast | `sonner` en `src/main.tsx` | `src/main.tsx` | success / warning / error | live region + feedback visual |
+| PWA update | `usePwaUpdate` + `PwaManager` | `src/hooks/usePwaUpdate.ts` | activación manual + recarga coordinada | builds sucesivos, timeout y reintento |
 | Form | formularios nativos con `noValidate` | componentes propietarios | alta / edición | validación inline |
 | Scrollbar | `src/styles.css` | variables CSS runtime | densidad por superficie | computed style + contraste |
 | CRUD | `AuthorsView` | `src/components/AuthorsView.tsx` | retorno a la vista propietaria | toast + foco |
@@ -79,6 +80,7 @@
 - Las métricas y los límites remotos usan el mismo calendario local. Un período sin actividad solo se presenta como tal cuando su cobertura está completa.
 - Si falla `localStorage`, la caché en memoria sigue funcionando y se muestra la limitación de persistencia.
 - La sincronización manual es segura de repetir; los errores por repositorio se muestran y permiten reintento.
+- `Actualizar ahora` espera la activación de la versión PWA antes de recargar la página y bloquea clics duplicados. Si no termina en 15 segundos, conserva el aviso y muestra el error con opción de reintentar. Una activación desde otra pestaña mantiene la recarga que coordina el registro PWA.
 
 ## Acceso personal
 
