@@ -165,8 +165,8 @@ function PullRequestPrimary({ pr, session, status, lifecycle, ignored, reviewDec
   </div>
 }
 
-const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Session; highlighted?: boolean; gitWorkflowSettings: GitWorkflowSettings; onGitWorkflowSettingsChange: (settings: GitWorkflowSettings) => void; onOpenSettings: () => void }>(function PullRequestRecord(
-  { pr, session, highlighted = false, gitWorkflowSettings, onGitWorkflowSettingsChange, onOpenSettings },
+const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Session; highlighted?: boolean; technicalStatsEnabled?: boolean; gitWorkflowSettings: GitWorkflowSettings; onGitWorkflowSettingsChange: (settings: GitWorkflowSettings) => void; onOpenSettings: () => void }>(function PullRequestRecord(
+  { pr, session, highlighted = false, technicalStatsEnabled = true, gitWorkflowSettings, onGitWorkflowSettingsChange, onOpenSettings },
   ref,
 ) {
   const reduceMotion = useReducedMotion()
@@ -193,7 +193,7 @@ const PullRequestRecord = forwardRef<HTMLElement, { pr: PullRequest; session: Se
 
       <aside className="pr-reviewers" aria-label="Revisores"><span className="column-kicker">Revisores</span><ReviewerPopover pr={pr} session={session} /></aside>
       <div className="pr-actions"><PullRequestMenu pr={pr} /></div>
-      <PullRequestStats pr={pr} session={session} />
+      <PullRequestStats pr={pr} session={session} enabled={technicalStatsEnabled} />
       <AnimatePresence>{contextOpen && <ReviewContextDialog pr={pr} session={session} onClose={() => setContextOpen(false)} />}</AnimatePresence>
     </m.article>
   )

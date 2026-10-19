@@ -69,6 +69,10 @@
 ## Async and resilience
 
 - La cola puede refrescarse en segundo plano sin ocultar datos existentes.
+- La cola descarga primero PR abiertos, borradores y en cola de fusión. Los fusionados y rechazados se consultan al seleccionar su estado o Todos; sus contadores se omiten hasta completar esa lectura, sin presentar una caché parcial como total.
+- Cada lectura de repositorio termina como máximo a los 90 segundos, incluida la espera por un turno de red. Al cancelar o fallar se abortan sus solicitudes pendientes. Se conserva la caché anterior y el error muestra repositorio, operación y motivo; la consola registra solo esos datos y el estado HTTP, nunca credenciales.
+- El refresco reutiliza la actividad de PR cuyo `updated_on` no cambió. Volver a enfocar la ventana no relanza la sincronización; se mantienen la consulta cada 10 minutos, reconexión y reintento manual.
+- Las estadísticas técnicas de los registros esperan a que termine la lectura principal de la cola y se reutilizan mientras no cambie el PR; sus solicitudes se cancelan al retirar el registro.
 - La caché mensual es independiente del histórico antiguo y de la cola rápida: no se mezcla cobertura ni actividad de otras cuentas. Una lectura completa reemplaza su mes; un error o una lectura limitada conserva lo ya disponible.
 - Las consultas terminan y guardan sus resultados aunque se salga de Resumen; una respuesta tardía no reemplaza el rango activo. Se permiten dos trabajos de período concurrentes y cuatro lecturas de actividad por trabajo, con timeout por petición.
 - Navegar no vuelve a descargar meses guardados. Mientras Resumen está abierto, el mes actual se actualiza en segundo plano cada 10 minutos; los meses anteriores se actualizan manualmente. Al cambiar el día local se amplía la cobertura del mes actual.

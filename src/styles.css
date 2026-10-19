@@ -693,6 +693,15 @@ input:focus-visible,
   font-size: 12px;
 }
 
+.sync-error-details { margin: .5rem 0 0; padding-left: 1rem; overflow-wrap: anywhere; color: var(--text-secondary); font-size: .8rem; line-height: 1.5; }
+.sync-error-details li { margin-top: .35rem; }
+.sync-error-details li > strong, .sync-error-details li > span { display: block; }
+
+@media (max-width: 680px) {
+  .error-banner { grid-template-columns: 38px minmax(0, 1fr); align-items: start; }
+  .error-banner > button { grid-column: 2; justify-self: start; }
+}
+
 .loading-status {
   min-height: 68px;
   padding: 12px 14px;
