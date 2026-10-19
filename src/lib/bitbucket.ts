@@ -5,6 +5,7 @@ export { classifyPr, getLifecycleStatus, getReviewDecision, getReviewerState, is
 const API = 'https://api.bitbucket.org/2.0'
 const REQUEST_TIMEOUT_MS = 30_000
 export const BITBUCKET_REQUEST_CONCURRENCY = 6
+const BITBUCKET_PAGE_SIZE = 100
 let activeRequests = 0
 const queuedRequestSlots: Array<() => void> = []
 
@@ -66,14 +67,15 @@ const hasReviewHistorySignal = (pr: Omit<PullRequest, 'repo'>, session: Session)
 export async function getPullRequests(repo: RepoConfig, session: Session) {
   const base = `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests`
   const states = ['OPEN', 'MERGED', 'DECLINED']
-  const results = (await Promise.all(states.map((state) => allPages<Omit<PullRequest, 'repo'>>(`${base}?state=${state}&pagelen=50&fields=values.id,values.title,values.description,values.state,values.draft,values.queued,values.created_on,values.updated_on,values.author,values.source.branch,values.source.repository.full_name,values.source.repository.links.html,values.destination.branch,values.destination.repository.full_name,values.links.html,values.comment_count,values.participants,next`, session)))).flat()
+  const results = (await Promise.all(states.map((state) => allPages<Omit<PullRequest, 'repo'>>(`${base}?state=${state}&pagelen=${BITBUCKET_PAGE_SIZE}&fields=values.id,values.title,values.description,values.state,values.draft,values.queued,values.created_on,values.updated_on,values.author,values.source.branch,values.source.repository.full_name,values.source.repository.links.html,values.destination.branch,values.destination.repository.full_name,values.links.html,values.comment_count,values.participants,next`, session)))).flat()
   const activityByPullRequest = new Map<number, PullRequestActivity[]>()
   const pullRequestsWithReviewHistory = results.filter((pr) => pr.state === 'OPEN' && hasReviewHistorySignal(pr, session))
   // The repository-wide feed has no date filter and can require thousands of events.
   // Load history only for open PRs whose participant data indicates a review matters.
-  for (let index = 0; index < pullRequestsWithReviewHistory.length; index += 4) {
-    const batch = pullRequestsWithReviewHistory.slice(index, index + 4)
-    const activities = await Promise.all(batch.map((pr) => allPages<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=50&fields=${activityFields}`, session)))
+  const activityBatchSize = 4
+  for (let index = 0; index < pullRequestsWithReviewHistory.length; index += activityBatchSize) {
+    const batch = pullRequestsWithReviewHistory.slice(index, index + activityBatchSize)
+    const activities = await Promise.all(batch.map((pr) => allPages<PullRequestActivity>(`${base}/${pr.id}/activity?pagelen=${BITBUCKET_PAGE_SIZE}&fields=${activityFields}`, session)))
     batch.forEach((pr, position) => activityByPullRequest.set(pr.id, activities[position]))
   }
 
