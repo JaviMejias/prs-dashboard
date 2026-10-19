@@ -5,7 +5,7 @@ export { classifyPr, getLifecycleStatus, getReviewDecision, getReviewerState, is
 const API = 'https://api.bitbucket.org/2.0'
 const REQUEST_TIMEOUT_MS = 30_000
 export const BITBUCKET_REQUEST_CONCURRENCY = 6
-const BITBUCKET_PAGE_SIZE = 100
+const BITBUCKET_PAGE_SIZE = 50
 let activeRequests = 0
 const queuedRequestSlots: Array<() => void> = []
 
