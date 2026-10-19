@@ -28,8 +28,24 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "version": { "type": "string" },
-        "kind": { "type": "string", "enum": ["language", "framework", "library"] }
+        "kind": { "type": "string", "enum": ["language", "framework", "library"] },
+        "evidence": { "type": "string", "maxLength": 2000 },
+        "documentationUrl": { "type": "string", "format": "uri", "pattern": "^https://", "maxLength": 2048 }
       }
+    },
+    "projectProfile": {
+      "type": "object", "additionalProperties": false,
+      "required": ["summary", "architecture", "reviewGuidelines", "evidence", "unknowns", "usePersonalPreferences", "useLegacyRules"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 30000 }, "architecture": { "type": "string", "maxLength": 30000 },
+        "reviewGuidelines": { "type": "string", "maxLength": 30000 }, "evidence": { "type": "string", "maxLength": 30000 },
+        "unknowns": { "type": "string", "maxLength": 30000 }, "usePersonalPreferences": { "type": "boolean" },
+        "useLegacyRules": { "type": "boolean" }, "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "personalReviewPreferences": {
+      "type": "object", "additionalProperties": false, "required": ["instructions"],
+      "properties": { "instructions": { "type": "string", "maxLength": 30000 } }
     },
     "author": {
       "type": "object",
@@ -181,7 +197,7 @@
         "schemaVersion": { "type": "integer", "const": 2 },
         "repository": {
           "type": "object", "additionalProperties": false, "required": ["workspace", "repository"],
-          "properties": { "workspace": { "type": "string" }, "repository": { "type": "string" }, "friendlyName": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } } }
+          "properties": { "workspace": { "type": "string" }, "repository": { "type": "string" }, "friendlyName": { "type": "string" }, "url": { "type": "string", "format": "uri" }, "technologies": { "type": "array", "items": { "$ref": "#/$defs/repositoryTechnology" } }, "profile": { "$ref": "#/$defs/projectProfile" }, "personalPreferences": { "$ref": "#/$defs/personalReviewPreferences" } }
         },
         "pullRequest": {
           "type": "object", "additionalProperties": false, "required": ["id", "title", "state", "draft", "createdAt", "updatedAt"],

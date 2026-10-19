@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest'
+import { emptyProjectProfile } from './projectPreparation'
 import { getAvailableRules, getAvailableRulepacks, getRulepack, resolveRulepacksForRepository, rulepackReference, validateRuleMetadata, validateRulepackCatalog, validateRulepackMetadata } from './rulepacks'
 
 describe('rulepacks', () => {
+  it('keeps legacy selections but lets a project opt out of advanced and personal legacy rules', () => {
+    const profile = emptyProjectProfile()
+    const repo = { workspace: 'team', repo: 'app', profile }
+    expect(resolveRulepacksForRepository({ ...repo, profile: { ...profile, useLegacyRules: false } }).rules).toEqual([])
+    const configured = resolveRulepacksForRepository({ ...repo, rulepackRefs: ['kontroller-official@1.0.0'] })
+    expect(configured.rules).toHaveLength(6)
+    expect(configured.rules.some((rule) => rule.id === 'kontroller-code-style')).toBe(false)
+    expect(configured.unavailable).toEqual([])
+  })
+
+  it('uses restored snapshots once, preserving references without duplicate rules', () => {
+    const original = getAvailableRules()[0]
+    const catalog = getAvailableRules([{ ...original, source: 'local', content: 'Restored snapshot' }])
+    expect(catalog.filter((rule) => rule.reference === original.reference)).toHaveLength(1)
+    expect(catalog.find((rule) => rule.reference === original.reference)?.content).toBe('Restored snapshot')
+  })
   it('exposes a versioned catalog and resolves by exact id and version', () => {
     const available = getAvailableRulepacks()
     expect(available.length).toBeGreaterThan(0)

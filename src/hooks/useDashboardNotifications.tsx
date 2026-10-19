@@ -49,6 +49,7 @@ function playDashboardSound(context: AudioContext) {
 }
 
 type NotificationOptions = {
+  activeView: 'queue' | 'summary' | 'authors'
   allPrs: PullRequest[]
   initialLoading: boolean
   initialSyncComplete: boolean
@@ -68,6 +69,7 @@ type NotificationOptions = {
 }
 
 export function useDashboardNotifications({
+  activeView,
   allPrs,
   initialLoading,
   initialSyncComplete,
@@ -99,11 +101,12 @@ export function useDashboardNotifications({
 
   useEffect(() => {
     const unreadCount = notices.filter((notice) => !notice.read).length
+    const viewTitle = { queue: 'Cola de revisión', summary: 'Resumen', authors: 'Preparar revisiones' }[activeView]
     document.title = preferences.title && unreadCount
-      ? `${unreadCount} nuevas · PR Control Room`
-      : 'Cola de revisión — PR Control Room'
+      ? `${unreadCount} nuevas · ${viewTitle} — PR Control Room`
+      : `${viewTitle} — PR Control Room`
     return () => { document.title = 'PR Control Room · Bitbucket' }
-  }, [notices, preferences.title])
+  }, [activeView, notices, preferences.title])
 
   useEffect(() => {
     const refreshIgnoreRules = () => setIgnoreRevision((value) => value + 1)

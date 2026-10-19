@@ -185,11 +185,38 @@ sostiene las capacidades de PWA, no ejecuta polling en segundo plano.
 
 ## Preparar
 
-La vista Preparar agrupa la configuración del trabajo local:
+Preparar muestra una ficha por proyecto: contexto, arquitectura, versiones,
+criterios de revisión, evidencia y dudas. Mis preferencias se guardan una sola
+vez y cada ficha decide si aplicarlas. Git, autores y la biblioteca anterior
+siguen disponibles en Configuración avanzada.
 
-- Repositorios: tecnologías, versiones y reglas asociadas.
-- Autores: aliases y remotos locales de autores de Bitbucket.
-- Reglas: biblioteca global y reglas personalizadas.
+Para conocer un proyecto nuevo:
+
+1. Usa Conocer proyecto y pega la instrucción en Codex dentro de su carpeta.
+2. En Editar ficha, abre Pegar el resultado de Codex y revisa su JSON.
+3. Corrige el borrador y pulsa Guardar ficha. No se aplica automáticamente.
+
+El reconocimiento es limitado y de solo lectura, no una auditoría global.
+La app no analiza la carpeta ni ejecuta Codex. Las referencias oficiales deben
+corresponder a la versión detectada; una fuente de una serie, como Ruby 2.4,
+no se presenta como documentación exacta del parche 2.4.3.
+
+Copiar para Codex y Descargar AGENTS.md generan el mismo contexto del proyecto,
+incluidas sus reglas seleccionadas. No escriben archivos en tu repositorio.
+La ficha también se incorpora al contexto de los PR sin volver a descargar la
+cola. Una preferencia personal no tiene prioridad sobre una convención
+verificada del proyecto y los conflictos deben señalarse explícitamente.
+
+Descargar respaldo guarda fichas, tecnologías, preferencias, selecciones y
+copias de las reglas en JSON portable v2. Restaurar muestra una vista previa y
+permite conservar lo actual o usar el respaldo; no elimina otros proyectos.
+La escritura es atómica y ofrece Deshacer hasta la siguiente edición. Las
+bibliotecas antiguas de reglas se importan desde las opciones avanzadas.
+
+Todo queda solo en este navegador: guarda el respaldo fuera de tu PC antes de
+formatear. No hay sincronización automática. El respaldo no incluye la sesión,
+los aliases Git ni metadata de rutas de este equipo. Revisa los textos libres
+antes de compartirlos; no son filtrados automáticamente para detectar secretos.
 
 El contexto preparado puede incluir repositorio, ramas, estado, autor, fechas,
 commits, archivos modificados, diffstat, comentarios, actividad y reglas

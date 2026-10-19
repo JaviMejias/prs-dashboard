@@ -1,6 +1,8 @@
 import { getLifecycleStatus, getReviewDecision, getReviewerState, isFreshPullRequest } from './pullRequestReviewState'
 import { displayName, requiresReview } from './dashboard'
 import { reviewTargetCountry, type GitReviewInstruction } from './gitWorkflow'
+import { buildProjectProfileMarkdown } from './projectPreparation'
+import { getPersonalReviewPreferences } from './storage'
 import type { AppliedReviewRule, AppliedRulepack, PullRequest, PullRequestActivity, RepoConfig, ReviewContext, ReviewContextActivity, ReviewContextComment, ReviewContextReply, Session } from '../types'
 
 type ReviewContextDetails = Pick<ReviewContext, 'commits' | 'changedFiles' | 'diffstat' | 'comments'> & {
@@ -72,6 +74,8 @@ export function buildReviewContext(pr: PullRequest, session: Session, details: R
       repository: pr.repo.repo,
       url: pr.destination?.repository?.links?.html?.href || `https://bitbucket.org/${pr.repo.workspace}/${pr.repo.repo}`,
       technologies: pr.repo.technologies,
+      profile: pr.repo.profile,
+      personalPreferences: pr.repo.profile?.usePersonalPreferences === false ? undefined : getPersonalReviewPreferences(),
     },
     pullRequest: {
       id: pr.id,
@@ -136,6 +140,8 @@ export function buildReviewContextMarkdown(context: ReviewContext) {
     `- Workspace: ${repository.workspace}`,
     `- Repositorio: ${repository.repository}`,
     `- URL: ${markdownLink(repository.url || 'Abrir repositorio', repository.url)}`,
+    '',
+    buildProjectProfileMarkdown({ workspace: repository.workspace, repo: repository.repository, technologies: repository.technologies, profile: repository.profile }, repository.personalPreferences),
     '',
     '## Technologies',
     '',
@@ -263,6 +269,8 @@ export function buildRepositoryCodexConfiguration(repo: RepoConfig, rules: Appli
     '',
     `- Workspace: ${repo.workspace}`,
     `- Repositorio: ${repo.repo}`,
+    '',
+    buildProjectProfileMarkdown(repo, getPersonalReviewPreferences()),
     '',
     '## Tecnologías y versiones',
     '',

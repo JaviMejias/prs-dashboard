@@ -45,21 +45,21 @@ export function pullRequestQueueQuery(client: QueryClient, session: Session, rep
 
 export function usePullRequestQueue(session: Session | null, repos: RepoConfig[], lifecycle: LifecycleFilter = 'OPEN') {
   const client = useQueryClient()
-  const jobs = session ? repos.flatMap((repo) => pullRequestStates.map((state) => ({
+  const jobs = useMemo(() => session ? repos.flatMap((repo) => pullRequestStates.map((state) => ({
     repo, state, enabled: state === 'OPEN' || lifecycle === 'ALL' || lifecycle === state,
-  }))) : []
+  }))) : [], [session, repos, lifecycle])
   const results = useQueries({ queries: jobs.map(({ repo, state, enabled }) => pullRequestQueueQuery(client, session!, repo, state, enabled)) })
   const queries = results.filter((_, index) => jobs[index].enabled)
   const openQueries = results.filter((_, index) => jobs[index].state === 'OPEN')
   const allPrs = useMemo(() => {
     const latest = new Map<string, PullRequest>()
-    results.forEach((query) => query.data?.forEach((pr) => {
+    results.forEach((query, index) => query.data?.forEach((pr) => {
       const key = `${repositoryKey(pr.repo)}#${pr.id}`
       const previous = latest.get(key)
-      if (!previous || Date.parse(pr.updated_on) > Date.parse(previous.updated_on)) latest.set(key, pr)
+      if (!previous || Date.parse(pr.updated_on) > Date.parse(previous.updated_on)) latest.set(key, { ...pr, repo: jobs[index].repo })
     }))
     return Array.from(latest.values())
-  }, [results])
+  }, [results, jobs])
   const fetching = queries.some((query) => query.isFetching)
   const fetchedRepositories = repos.filter((repo) => jobs.every((job, index) => repositoryKey(job.repo) !== repositoryKey(repo) || !job.enabled || results[index].isFetched)).length
   const initialLoading = fetchedRepositories < repos.length

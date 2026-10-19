@@ -27,6 +27,9 @@
 | Toast | `sonner` en `src/main.tsx` | `src/main.tsx` | success / warning / error | live region + feedback visual |
 | PWA update | `usePwaUpdate` + `PwaManager` | `src/hooks/usePwaUpdate.ts` | activación manual + recarga coordinada | builds sucesivos, timeout y reintento |
 | Local review preparation | `LocalReviewGuide` + `useReviewContext` + `ReviewContextDialog` | `src/lib/reviewContext.ts` | copia directa / vista previa con el mismo texto | conversaciones, país, datos parciales, portapapeles, móvil |
+| Project preparation | `PreparationView` + `ProjectProfileEditor` | `src/lib/projectPreparation.ts` | ficha manual / resultado de Codex revisado | migración, JSON inválido, borrador, copia y contexto de PR |
+| Preparation form dialog | `PreparationDialog` + `useModalDialog` | `src/components/PreparationDialog.tsx` | diálogo nativo con protección de cambios | foco, Escape, descartar, móvil |
+| Portable backup | `PreparationBackupDialog` + `preparationBackup` | `src/lib/preparationBackup.ts` | conservar actuales / usar respaldo | preview, conflictos, cuota, deshacer e idempotencia |
 | Form | formularios nativos con `noValidate` | componentes propietarios | alta / edición | validación inline |
 | Scrollbar | `src/styles.css` | variables CSS runtime | densidad por superficie | computed style + contraste |
 | CRUD | `AuthorsView` | `src/components/AuthorsView.tsx` | retorno a la vista propietaria | toast + foco |
@@ -69,6 +72,15 @@
 - Los toasts comunican resultado de una acción; los estados de carga, error y cobertura permanecen en la superficie que los originó.
 
 ## Async and resilience
+
+- Preparar se centra en fichas con propósito, arquitectura, versiones, criterios, evidencia y dudas. Las preferencias personales se guardan una sola vez y se aplican por proyecto. Las reglas antiguas se conservan como avanzadas; los proyectos nuevos no heredan las reglas de Kontroller por defecto.
+- Conocer proyecto copia una instrucción limitada y de solo lectura. La app no analiza carpetas ni ejecuta Codex. Pegar su JSON valida repositorio, formato y referencias HTTPS y llena un borrador; se revisa antes de Guardar ficha. La edición manual sigue disponible.
+- Los formularios usan el diálogo nativo compartido con el control de foco existente. Cierran con su botón o Escape, no al pulsar el fondo. Con cambios sin guardar ofrecen Seguir editando o Descartar; recargar/cerrar usa la protección de navegación del navegador. Una escritura fallida conserva el borrador y muestra un error persistente.
+- La ficha se añade a la copia del proyecto y al contexto del PR, incluso con datos remotos en caché, sin forzar otra consulta. Desactivar preferencias personales también evita incluirlas en el JSON del contexto.
+- Las referencias distinguen versión concreta y serie; no prueban compatibilidad automáticamente. Codex debe comprobar manifiestos/lockfiles y señalar conflictos entre evidencia, convenciones y preferencias. La app no interpreta lenguaje natural para resolverlos.
+- Descargar respaldo exporta fichas, tecnologías, preferencias, selecciones y copias de las reglas en formato portable v2. Excluye sesión, aliases, estado Git y metadata de rutas del equipo. Se advierte revisar los textos libres antes de compartir. No hay sincronización automática entre PCs.
+- Restaurar valida hasta 2 MB y muestra proyectos nuevos, fichas/reglas distintas y preferencias diferentes. Por defecto conserva lo actual y añade faltantes; usar el respaldo exige seleccionar esa opción. Nunca borra otros proyectos. Si la configuración cambia tras la vista previa, pide revisarla otra vez.
+- Fichas, biblioteca y preferencias se guardan en una única clave canónica. Restaurar escribe todo junto y conserva un estado anterior acotado en esa misma escritura. Un fallo de cuota no aplica nada parcialmente. Deshacer está disponible hasta la siguiente edición; no modifica sesión ni Git. Las claves antiguas permanecen intactas como respaldo de migración.
 
 - La cola puede refrescarse en segundo plano sin ocultar datos existentes.
 - La cola descarga primero PR abiertos, borradores y en cola de fusión. Los fusionados y rechazados se consultan al seleccionar su estado o Todos; sus contadores se omiten hasta completar esa lectura, sin presentar una caché parcial como total.

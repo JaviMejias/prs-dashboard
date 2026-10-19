@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildApplicableRulesMarkdown, buildCodexPreparation, buildRepositoryCodexConfiguration, buildReviewContext, buildReviewContextJson, buildReviewContextMarkdown } from './reviewContext'
 import { getAvailableRules } from './rulepacks'
 import { buildGitReviewInstruction } from './gitWorkflow'
+import { emptyProjectProfile } from './projectPreparation'
 import type { PullRequest, Session } from '../types'
 
 const session: Session = { email: 'javier@example.com', token: 'not-used', expiresAt: Date.now(), uuid: '{me}', displayName: 'Javier Mejías' }
@@ -24,6 +25,24 @@ beforeEach(() => {
 
 describe('ReviewContext', () => {
   const emptyDetails = { commits: [], changedFiles: [], diffstat: { files: 0, additions: 0, deletions: 0, totalChanges: 0 }, comments: [], activity: [], unavailable: [] }
+
+  it('includes the project profile and current personal preferences in a PR context', () => {
+    vi.stubGlobal('localStorage', { getItem: (key: string) => key === 'prcr:preparation-v1' ? JSON.stringify({ schemaVersion: 1, repositories: [], customRules: [], personalPreferences: { instructions: 'PORTABLE-QA-PREFERENCE' } }) : null })
+    const profile = { ...emptyProjectProfile(), summary: 'ERP multitenant confirmado', architecture: 'Monolito Rails', unknowns: 'PWA pendiente de verificar' }
+    const context = buildReviewContext({ ...pr, repo: { ...pr.repo, profile } }, session, emptyDetails)
+    const prompt = buildCodexPreparation(context)
+    expect(prompt).toContain('ERP multitenant confirmado')
+    expect(prompt).toContain('PWA pendiente de verificar')
+    expect(prompt).toContain('PORTABLE-QA-PREFERENCE')
+    expect(prompt).not.toContain(session.token)
+  })
+
+  it('omits personal preferences from both text and JSON when the project opts out', () => {
+    vi.stubGlobal('localStorage', { getItem: (key: string) => key === 'prcr:preparation-v1' ? JSON.stringify({ schemaVersion: 1, repositories: [], customRules: [], personalPreferences: { instructions: 'EXCLUDED-QA-PREFERENCE' } }) : null })
+    const context = buildReviewContext({ ...pr, repo: { ...pr.repo, profile: { ...emptyProjectProfile(), usePersonalPreferences: false } } }, session, emptyDetails)
+    expect(buildReviewContextJson(context)).not.toContain('EXCLUDED-QA-PREFERENCE')
+    expect(buildCodexPreparation(context)).not.toContain('EXCLUDED-QA-PREFERENCE')
+  })
 
   it('keeps nested and historical replies without treating a participation date as read state', () => {
     const details = {

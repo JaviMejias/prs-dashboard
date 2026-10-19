@@ -1,5 +1,9 @@
-export type RepositoryTechnology = { id: string; name: string; version: string; kind: 'language' | 'framework' | 'library' }
-export type RepoConfig = { workspace: string; repo: string; technologies?: RepositoryTechnology[]; ruleRefs?: string[]; rulepackRefs?: string[] }
+export type RepositoryTechnology = { id: string; name: string; version: string; kind: 'language' | 'framework' | 'library'; evidence?: string; documentationUrl?: string }
+export type ProjectProfile = { summary: string; architecture: string; reviewGuidelines: string; evidence: string; unknowns: string; usePersonalPreferences: boolean; useLegacyRules: boolean; updatedAt?: string }
+export type PersonalReviewPreferences = { instructions: string }
+export type RepoConfig = { workspace: string; repo: string; technologies?: RepositoryTechnology[]; ruleRefs?: string[]; rulepackRefs?: string[]; profile?: ProjectProfile }
+export type PreparationData = { repositories: RepoConfig[]; customRules: ReviewRule[]; personalPreferences: PersonalReviewPreferences }
+export type StoredPreparation = PreparationData & { schemaVersion: 1; previous?: PreparationData }
 export type Session = { email: string; token: string; expiresAt: number; uuid?: string; displayName?: string }
 export type BitbucketUser = { uuid: string; display_name: string }
 export type ActivityUser = { uuid?: string; display_name?: string }
@@ -57,7 +61,7 @@ export type AppliedRulepack = Rulepack & { reviewRulesContent: string; testingCo
 export type AppliedReviewRule = ReviewRule & { reference: string }
 export type ReviewContext = {
   schemaVersion: 2
-  repository: { workspace: string; repository: string; friendlyName?: string; url?: string; technologies?: RepositoryTechnology[] }
+  repository: { workspace: string; repository: string; friendlyName?: string; url?: string; technologies?: RepositoryTechnology[]; profile?: ProjectProfile; personalPreferences?: PersonalReviewPreferences }
   pullRequest: { id: number; title: string; description?: string; state: LifecycleStatus; draft: boolean; author?: { name?: string; uuid?: string; url?: string }; sourceBranch?: string; targetBranch?: string; createdAt: string; updatedAt: string; url?: string }
   reviewState: ReviewContextReviewState
   commits: ReviewContextCommit[]

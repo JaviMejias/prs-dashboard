@@ -1,20 +1,146 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://pr-control-room.invalid/schemas/portable-export.schema.json",
-  "title": "PR Control Room portable configuration",
+  "title": "PR Control Room portable preparation v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "application", "exportedAt", "repositories", "rulepackMappings"],
+  "required": [
+    "schemaVersion",
+    "application",
+    "exportedAt",
+    "repositories",
+    "rules",
+    "personalPreferences"
+  ],
   "properties": {
-    "schemaVersion": { "type": "integer", "const": 1 },
-    "application": { "type": "string", "const": "pr-control-room" },
-    "exportedAt": { "type": "string", "format": "date-time" },
-    "repositories": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/repository" } },
-    "authors": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/author" } },
-    "aliases": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/authorAlias" } },
-    "ignoreRules": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/ignoreRule" } },
-    "preferences": { "$ref": "domain.schema.json#/$defs/preferences" },
-    "rulepacks": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/rulepack" } },
-    "rulepackMappings": { "type": "array", "items": { "$ref": "domain.schema.json#/$defs/repositoryRulepackMapping" } }
+    "schemaVersion": {
+      "type": "integer",
+      "const": 2
+    },
+    "application": {
+      "type": "string",
+      "const": "pr-control-room"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repositories": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "$ref": "#/$defs/project"
+      }
+    },
+    "rules": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "$ref": "#/$defs/rule"
+      }
+    },
+    "personalPreferences": {
+      "$ref": "domain.schema.json#/$defs/personalReviewPreferences"
+    }
+  },
+  "$defs": {
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace",
+        "repo"
+      ],
+      "properties": {
+        "workspace": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,199}$"
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,199}$"
+        },
+        "profile": {
+          "$ref": "domain.schema.json#/$defs/projectProfile"
+        },
+        "technologies": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "$ref": "domain.schema.json#/$defs/repositoryTechnology"
+          }
+        },
+        "ruleRefs": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "string"
+          }
+        },
+        "rulepackRefs": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "category",
+        "description",
+        "content",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "general",
+            "technology",
+            "framework",
+            "project"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200000
+        },
+        "source": {
+          "enum": [
+            "git",
+            "local"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "technology": {
+          "type": "string"
+        },
+        "rulepackId": {
+          "type": "string"
+        }
+      }
+    }
   }
 }
