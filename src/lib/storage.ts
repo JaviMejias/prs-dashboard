@@ -13,6 +13,16 @@ const uniqueRepos = (repos: RepoConfig[]) => Array.from(new Map(repos.map((repo)
 export function getJson<T>(key: string, fallback: T): T { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback } catch { return fallback } }
 function saveJson<T>(key: string, value: T) { try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* Browser storage can be unavailable in private or restricted contexts. */ } }
 function removeItem(key: string) { try { localStorage.removeItem(key) } catch { /* Keep the interface usable when browser storage is unavailable. */ } }
+function getSessionJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(key)
+    return raw ? JSON.parse(raw) as T : fallback
+  } catch { return fallback }
+}
+function saveSessionJson<T>(key: string, value: T) {
+  try { sessionStorage.setItem(key, JSON.stringify(value)); return true } catch { return false }
+}
+function removeSessionItem(key: string) { try { sessionStorage.removeItem(key) } catch { /* Keep the interface usable when browser storage is unavailable. */ } }
 function isActionableNotice(value: unknown): value is Notice {
   if (!value || typeof value !== 'object') return false
   const notice = value as Partial<Notice>
@@ -28,9 +38,18 @@ function isActionableNotice(value: unknown): value is Notice {
     && typeof notice.pullRequestId === 'number'
     && (notice.pullRequestKey === undefined || typeof notice.pullRequestKey === 'string')
 }
-export const getSession = () => getJson<Session | null>(keys.session, null)
-export const saveSession = (s: Session) => saveJson(keys.session, s)
-export const clearSession = () => removeItem(keys.session)
+export const getSession = () => {
+  removeItem(keys.session)
+  return getSessionJson<Session | null>(keys.session, null)
+}
+export const saveSession = (s: Session) => {
+  removeItem(keys.session)
+  return saveSessionJson(keys.session, s)
+}
+export const clearSession = () => {
+  removeItem(keys.session)
+  removeSessionItem(keys.session)
+}
 export function migrateKontrollerRepository(repo: RepoConfig): RepoConfig {
   if (repo.workspace.toLocaleLowerCase() !== 'kontroller_test' || repo.repo.toLocaleLowerCase() !== 'kontroller_test') return repo
   const rulepackRefs = (repo.rulepackRefs || []).filter((reference) => reference !== legacyKontrollerRulepack && reference !== officialKontrollerRulepack)

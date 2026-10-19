@@ -31,6 +31,7 @@ import {
   relativeTime,
 } from '../lib/dashboard'
 import { buildGitReviewInstruction, getGitRemotesCommand } from '../lib/gitWorkflow'
+import { safeBitbucketUrl } from '../lib/externalLinks'
 import ReviewContextDialog from './ReviewContextDialog'
 import PullRequestMenu from './PullRequestMenu'
 import PullRequestStats from './PullRequestStats'
@@ -135,7 +136,8 @@ function PullRequestPrimary({ pr, session, status, lifecycle, ignored, reviewDec
   const StatusIcon = isNew ? Sparkles : statusIcons[status]
   const handoff = getHandoffMessage(pr, status)
   const authorName = displayName(pr.author?.display_name || pr.author?.nickname)
-  const sourceRepositoryUrl = pr.source?.repository?.links?.html?.href
+  const sourceRepositoryUrl = safeBitbucketUrl(pr.source?.repository?.links?.html?.href)
+  const pullRequestUrl = safeBitbucketUrl(pr.links?.html?.href)
   const instruction = buildGitReviewInstruction(pr, session, gitWorkflowSettings)
 
   const saveAuthorRemote = () => {
@@ -155,7 +157,7 @@ function PullRequestPrimary({ pr, session, status, lifecycle, ignored, reviewDec
 
   return <div className="pr-primary">
     <div className="pr-heading-row"><span className={`qa-status qa-${ignored ? 'ignored' : status}`}><StatusIcon size={15} />{getReviewLabel(pr, status)}</span><span className={`lifecycle-status lifecycle-${lifecycle.toLowerCase()}`}><span />{lifecycleLabels[lifecycle]}</span><time dateTime={pr.updated_on} className="updated-time"><Clock3 size={13} /> Actualizado {relativeTime(pr.updated_on)}</time></div>
-    <a className="pr-title-link" href={pr.links?.html?.href} target="_blank" rel="noreferrer" title={pr.title} onClick={() => toast(`Abriendo PR #${pr.id}`, { id: `open-pr-${pr.repo.workspace}-${pr.repo.repo}-${pr.id}`, description: 'Bitbucket se abrirá en una pestaña nueva.' })} aria-label={`Abrir PR ${pr.id}: ${pr.title} en Bitbucket`}><h2 id={titleId}>{pr.title}</h2><ExternalLink size={17} /></a>
+    {pullRequestUrl ? <a className="pr-title-link" href={pullRequestUrl} target="_blank" rel="noreferrer" title={pr.title} onClick={() => toast(`Abriendo PR #${pr.id}`, { id: `open-pr-${pr.repo.workspace}-${pr.repo.repo}-${pr.id}`, description: 'Bitbucket se abrirá en una pestaña nueva.' })} aria-label={`Abrir PR ${pr.id}: ${pr.title} en Bitbucket`}><h2 id={titleId}>{pr.title}</h2><ExternalLink size={17} /></a> : <div className="pr-title-link"><h2 id={titleId}>{pr.title}</h2></div>}
     <div className="pr-context"><Avatar name={authorName} size="medium" /><div className="author-and-repo">{sourceRepositoryUrl ? <a href={sourceRepositoryUrl} target="_blank" rel="noreferrer" className="author-link" aria-label={`Abrir repositorio origen de ${authorName}`}><strong>{authorName}</strong><FolderGit2 size={14} /></a> : <strong>{authorName}</strong>}<span className="repo-reference">{pr.repo.repo} <b>#{pr.id}</b></span></div><span className="branch-path" title={`${pr.source?.branch?.name || '?'} → ${pr.destination?.branch?.name || '?'}`}><GitBranch size={15} /><span>{pr.source?.branch?.name || '?'}</span><b>→</b><span>{pr.destination?.branch?.name || '?'}</span></span></div>
     <GitReviewInstruction pr={pr} authorName={authorName} instruction={instruction} workflowOpen={workflowOpen} onToggle={() => setWorkflowOpen((open) => !open)} remoteEditorOpen={remoteEditorOpen} remoteDraft={remoteDraft} onRemoteDraftChange={setRemoteDraft} onOpenRemoteEditor={() => setRemoteEditorOpen(true)} onCloseRemoteEditor={() => setRemoteEditorOpen(false)} onSaveRemote={saveAuthorRemote} gitWorkflowSettings={gitWorkflowSettings} onGitWorkflowSettingsChange={onGitWorkflowSettingsChange} onOpenSettings={onOpenSettings} onOpenContext={onOpenContext} reduceMotion={reduceMotion} />
     <div className={`handoff-signal handoff-${ignored ? 'ignored' : status}`}><span className="handoff-node"><GitCommitHorizontal size={15} /></span><span className="handoff-track" aria-hidden="true"><i /></span><span className="handoff-node"><UserRound size={15} /></span><span className="handoff-copy"><strong>{handoff.label}</strong><small>{handoff.message}</small><em>{getReviewDecisionDetail(reviewDecision)}</em></span></div>

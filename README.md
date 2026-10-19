@@ -98,23 +98,28 @@ Bitbucket Cloud API
  ReviewContext + Markdown para Codex
 ~~~
 
-La lógica de decisión vive en funciones TypeScript y <code>localStorage</code> es
-la persistencia principal. No existe una API propia ni una arquitectura de
-dominio inspirada en backend.
+La lógica de decisión vive en funciones TypeScript y el navegador es la
+persistencia principal. La configuración usa <code>localStorage</code>; la
+sesión de Bitbucket usa <code>sessionStorage</code> y desaparece al cerrar la
+pestaña. No existe una API propia ni una arquitectura de dominio inspirada en
+backend.
 
 ### Datos locales
 
-Se guardan localmente repositorios, sesión, histórico de revisiones, snapshot
-de actividad, notificaciones, preferencias, autores ignorados, aliases,
+Se guardan localmente repositorios, histórico de revisiones, snapshot de
+actividad, notificaciones, preferencias, autores ignorados, aliases,
 remotos, reglas personalizadas y asociaciones de reglas por repositorio.
+
+La sesión de Bitbucket se mantiene únicamente mientras la pestaña esté abierta
+mediante <code>sessionStorage</code>; al cerrarla tendrás que volver a ingresar.
 
 Estos datos pertenecen al perfil del navegador y no se comparten entre PCs.
 Borrar los datos del sitio puede eliminar la configuración.
 
-El token queda en el navegador porque la aplicación no tiene backend. No debe
-exportarse, compartirse ni incluirse en capturas. En un equipo compartido,
-utiliza un perfil de navegador separado y revoca el token en Bitbucket cuando
-ya no sea necesario.
+El token se usa directamente desde el navegador porque la aplicación no tiene
+backend. No debe exportarse, compartirse ni incluirse en capturas. En un equipo
+compartido, utiliza un perfil de navegador separado y revoca el token en
+Bitbucket cuando ya no sea necesario.
 
 ## Cola y detección de revisión
 

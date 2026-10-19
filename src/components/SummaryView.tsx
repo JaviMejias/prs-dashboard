@@ -6,6 +6,7 @@ import ConfirmDialog from './ConfirmDialog'
 import DateRangePicker from './DateRangePicker'
 import { rangeFor, type DateRange } from '../lib/dateRange'
 import { formatDate, relativeTime } from '../lib/dashboard'
+import { safeBitbucketUrl } from '../lib/externalLinks'
 import { historyCoverageForRepositories, historyPullRequestsForRepositories } from '../lib/reviewHistory'
 import { previousDateRange, summaryMetricsForRange, type SummaryEvent } from '../lib/summary'
 import { useReviewHistorySync } from '../hooks/useReviewHistorySync'
@@ -66,7 +67,7 @@ function RepositoryBreakdown({ repositories }: { repositories: ReturnType<typeof
 function RecentActivity({ events }: { events: SummaryEvent[] }) {
   return <section className="summary-panel recent-activity" aria-labelledby="recent-activity-title">
     <header className="summary-panel-heading"><div><span className="summary-panel-icon"><Clock3 size={17} /></span><div><h2 id="recent-activity-title">Actividad reciente</h2><p>Las últimas decisiones que registraste.</p></div></div></header>
-    {events.length ? <ol className="summary-timeline">{events.slice(0, 6).map(({ event, pullRequest, repositoryKey }) => { const presentation = eventCopy[event.type]; const Icon = presentation.icon; return <li key={`${repositoryKey}-${event.id}`}><span className="summary-timeline-icon"><Icon size={14} /></span><div className="summary-timeline-copy"><strong>{presentation.label} <span>en</span> {pullRequest.url ? <a href={pullRequest.url} target="_blank" rel="noreferrer">PR #{pullRequest.id}</a> : <span>PR #{pullRequest.id}</span>}</strong><small>{pullRequest.title || repositoryKey} · {relativeTime(event.date)}</small></div><time dateTime={event.date}>{formatDate(event.date)}</time></li> })}</ol> : <p className="summary-panel-empty">Sin actividad reciente.</p>}
+    {events.length ? <ol className="summary-timeline">{events.slice(0, 6).map(({ event, pullRequest, repositoryKey }) => { const presentation = eventCopy[event.type]; const Icon = presentation.icon; const pullRequestUrl = safeBitbucketUrl(pullRequest.url); return <li key={`${repositoryKey}-${event.id}`}><span className="summary-timeline-icon"><Icon size={14} /></span><div className="summary-timeline-copy"><strong>{presentation.label} <span>en</span> {pullRequestUrl ? <a href={pullRequestUrl} target="_blank" rel="noreferrer">PR #{pullRequest.id}</a> : <span>PR #{pullRequest.id}</span>}</strong><small>{pullRequest.title || repositoryKey} · {relativeTime(event.date)}</small></div><time dateTime={event.date}>{formatDate(event.date)}</time></li> })}</ol> : <p className="summary-panel-empty">Sin actividad reciente.</p>}
   </section>
 }
 
