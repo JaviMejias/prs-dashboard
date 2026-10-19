@@ -233,7 +233,8 @@ Si una limitación real impide terminar, debe declarar cobertura parcial y lo
 pendiente, no afirmar que revisó todo. Son instrucciones para el agente, no una
 garantía ni una medición automática de exhaustividad por parte de la app.
 
-Conversaciones permite elegir Ronda reciente (aproximada) o Historial completo.
+Conversaciones permite elegir Últimos comentarios (para continuar este PR en el
+mismo chat) o Todo el historial (para un chat nuevo o recuperar sus antecedentes).
 Esta selección solo acota el texto adjunto; no limita el código que debe revisarse.
 La primera agrupa observaciones propias creadas dentro de los cinco minutos
 anteriores a la última y actividad posterior, conservando completos los hilos
@@ -243,6 +244,18 @@ hay identidad, observaciones propias o fechas fiables, se incluye todo el histor
 La edición de un comentario no inicia una ronda nueva. Se indica cuántos mensajes
 quedan fuera: no se dan por leídos ni resueltos. La atribución de respuestas del
 autor se limita a los datos recibidos, no demuestra ausencia de respuestas remotas.
+
+Después de cargar correctamente los comentarios, el selector se oculta si ambas
+opciones adjuntan exactamente los mismos mensajes. Si no se recibió ninguno,
+la guía solo dice «No se recibieron comentarios de Bitbucket», sin conteos de
+ceros ni advertencias de seguimiento vacías. Una consulta pendiente o fallida
+no se interpreta como cero comentarios; conserva las opciones y su advertencia.
+Si no se puede delimitar la selección reciente, se incluye todo y se explica
+esa limitación aunque el selector esté oculto. La app no detecta qué chat usas.
+
+El estado Esperando al autor conserva la fecha de participación y los commits
+personales disponibles; no toma la fecha de otro revisor ni inventa un commit
+si falta evidencia. Esta información no implica lectura ni resolución de hilos.
 
 Cada comentario aparece una sola vez en la guía. Vista previa de la guía comparte
 la selección con la copia directa y permite actualizar los datos. Incluir contexto

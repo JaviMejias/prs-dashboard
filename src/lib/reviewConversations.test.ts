@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { reviewConversationSummary, selectReviewConversations } from './reviewConversations'
+import { canChooseReviewConversationScope, reviewConversationSummary, selectReviewConversations } from './reviewConversations'
 import { buildCodexPreparation, buildReviewContext, buildReviewContextJson, buildReviewContextMarkdown } from './reviewContext'
 import { emptyProjectProfile } from './projectPreparation'
 import type { ReviewContextComment } from '../types'
@@ -21,6 +21,48 @@ const makeContext = (comments = rounds) => buildReviewContext({
 const ids = (comments: ReviewContextComment[]) => comments.map((item) => item.id)
 
 describe('Review conversation selection', () => {
+  it('offers the choice while data is unknown or unavailable, but not for successfully loaded empty comments', () => {
+    expect(canChooseReviewConversationScope(null)).toBe(true)
+    expect(canChooseReviewConversationScope({ ...makeContext([]), unavailable: ['comments'] })).toBe(true)
+    expect(canChooseReviewConversationScope(makeContext([]))).toBe(false)
+    expect(canChooseReviewConversationScope(makeContext())).toBe(true)
+  })
+
+  it('hides equivalent selections and generates identical guides for a single round', () => {
+    const context = makeContext(rounds.slice(-1))
+    expect(canChooseReviewConversationScope(context)).toBe(false)
+    expect(reviewConversationSummary(context, 'recent')).toEqual(reviewConversationSummary(context, 'all'))
+    expect(buildCodexPreparation(context, { commentScope: 'recent' })).toBe(buildCodexPreparation(context, { commentScope: 'all' }))
+    expect(reviewConversationSummary(context).join('\n')).toContain('1 de 1 comentarios incluidos')
+  })
+
+  it('hides equivalent selections when a complete active thread includes every comment', () => {
+    const context = makeContext([rounds[0], rounds[5], comment(7, '2026-10-19T19:30:00Z', { parentId: 1, authorUuid: '{dev}' })])
+    expect(canChooseReviewConversationScope(context)).toBe(false)
+    expect(selectReviewConversations(context).omittedCount).toBe(0)
+    expect(buildCodexPreparation(context, { commentScope: 'recent' })).toBe(buildCodexPreparation(context, { commentScope: 'all' }))
+  })
+
+  it('retains the fallback warning without offering identical history choices', () => {
+    const context = { ...makeContext(), reviewer: undefined }
+    expect(canChooseReviewConversationScope(context)).toBe(false)
+    expect(reviewConversationSummary(context, 'recent')).toEqual(reviewConversationSummary(context, 'all'))
+    expect(reviewConversationSummary(context).join('\n')).toContain('No se pudo delimitar una ronda')
+  })
+
+  it('reduces the empty conversation section to one honest sentence in both guides', () => {
+    const context = makeContext([])
+    for (const scope of ['recent', 'all'] as const) {
+      expect(reviewConversationSummary(context, scope)).toEqual(['No se recibieron comentarios de Bitbucket.'])
+      const section = buildCodexPreparation(context, { commentScope: scope }).split('## Conversaciones de Bitbucket\n')[1].split('\n\n## Entrega')[0]
+      expect(section).toBe('No se recibieron comentarios de Bitbucket.')
+    }
+    expect(buildCodexPreparation(context, { commentScope: 'recent' })).toBe(buildCodexPreparation(context, { commentScope: 'all' }))
+    const failed = { ...context, unavailable: ['comments'] }
+    expect(reviewConversationSummary(failed).join('\n')).toContain('No se pudieron cargar')
+    expect(buildCodexPreparation(failed)).not.toContain('No se recibieron comentarios de Bitbucket.')
+  })
+
   it('selects the latest of six rounds without assuming the five omitted rounds are resolved', () => {
     const context = makeContext()
     const selected = selectReviewConversations(context)

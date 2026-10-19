@@ -4,7 +4,7 @@ import { reviewTargetCountry, type GitReviewInstruction } from './gitWorkflow'
 import { buildProjectProfileMarkdown } from './projectPreparation'
 import { getPersonalReviewPreferences } from './storage'
 import { projectContextRevision } from './projectSession'
-import { isCommentBy, reviewConversationSummary, selectReviewConversations, type ReviewCommentScope } from './reviewConversations'
+import { isCommentBy, reviewCommentScopeLabels, reviewConversationSummary, selectReviewConversations, type ReviewCommentScope } from './reviewConversations'
 import type { AppliedReviewRule, AppliedRulepack, PullRequest, PullRequestActivity, RepoConfig, ReviewContext, ReviewContextActivity, ReviewContextComment, ReviewContextReply, Session } from '../types'
 
 type ReviewContextDetails = Pick<ReviewContext, 'commits' | 'changedFiles' | 'diffstat' | 'comments'> & {
@@ -323,7 +323,7 @@ export function buildCodexPreparation(context: ReviewContext, options: Preparati
     'No hay un cupo de hallazgos: reporta todos los problemas verificables y accionables, no solo los tres primeros ni únicamente los más graves. No te detengas por alcanzar una cantidad; tampoco inventes problemas para llegar a un mínimo ni dividas la misma causa en comentarios redundantes.',
     'En un seguimiento, verifica las correcciones y vuelve a revisar el resto del diff completo para detectar problemas antes omitidos y regresiones de las correcciones. Los comentarios previos orientan el seguimiento, no son una lista cerrada de lo que puedes revisar.',
     'Si pido revisar nuevamente aunque no haya commits nuevos, realiza una nueva revisión del código actual buscando omisiones. Que el commit sea el mismo no impide revisar otra vez ni demuestra ausencia de otros problemas; no presentes como cambio nuevo algo que ya estaba.',
-    'Ronda reciente o Historial completo solo elige qué conversaciones se adjuntan; nunca reduce el alcance del código a revisar.',
+    `«${reviewCommentScopeLabels.recent}» o «${reviewCommentScopeLabels.all}» solo elige qué conversaciones se adjuntan; nunca reduce el alcance del código a revisar.`,
     'Si el PR es grande, avanza por bloques y mantén registro de lo cubierto. Si una limitación real de acceso, herramientas o contexto impide completar la revisión, declárala como parcial, indica archivos o flujos revisados y pendientes y el motivo; no afirmes cobertura completa.', '',
     '## PR y seguimiento',
     `Autor: ${markdownValue(pullRequest.author?.name)} · Estado: ${pullRequest.state} · Actualizado: ${pullRequest.updatedAt}.`,
@@ -337,7 +337,7 @@ export function buildCodexPreparation(context: ReviewContext, options: Preparati
     ]),
     ...context.commits.map((commit) => `- ${commit.hash.slice(0, 12)} ${commit.message}`), '',
     '## Conversaciones de Bitbucket',
-    'Cada comentario aparece una vez. «Posterior a tu participación» no significa no leído; un hilo antiguo no significa resuelto.',
+    ...(context.comments.length || context.unavailable.includes('comments') ? ['Cada comentario aparece una vez. «Posterior a tu participación» no significa no leído; un hilo antiguo no significa resuelto.'] : []),
     ...reviewConversationSummary(context, options.commentScope),
     ...(context.unavailable.includes('comments') ? [] : conversations.comments.map((comment) => [
       `### #${comment.id ?? '?'} · ${markdownValue(comment.author)}${comment.parentId !== undefined ? ` · respuesta a #${comment.parentId}` : ''}${originalIds.has(comment.id) ? ' · observación tuya con respuestas' : ''}${replies.has(comment.id) ? ` · seguimiento de tu observación #${replies.get(comment.id)}` : ''}${pending.has(comment.id) ? ' · posterior a tu participación o sin fecha base' : ''}`,
