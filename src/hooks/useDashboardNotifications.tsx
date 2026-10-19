@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { CheckCircle2, CircleAlert, CircleSlash2, FilePenLine, GitMerge, GitPullRequest, LocateFixed, ScanEye } from 'lucide-react'
 import { toast } from 'sonner'
 import { getLifecycleStatus } from '../lib/pullRequestReviewState'
+import { safeBitbucketUrl } from '../lib/externalLinks'
 import { comparePullRequests, pullRequestKey, requiresReview } from '../lib/dashboard'
 import {
   createPullRequestNotice,
@@ -128,13 +129,14 @@ export function useDashboardNotifications({
     setShowNotices(false)
     const target = allPrs.find((pr) => noticeReferencesPullRequest(notice, pr))
     if (!target) {
+      const pullRequestUrl = safeBitbucketUrl(notice.pullRequestUrl)
       toast('Este PR no está en la cola cargada', {
         id: `missing-${notice.id}`,
         description: initialLoading
           ? 'La sincronización todavía no termina. Puedes volver a intentarlo desde este aviso.'
           : 'Puede haberse cerrado, eliminado, no haberse sincronizado o pertenecer a un repositorio que ya no monitorizas.',
         icon: <span className="toast-icon is-declined" aria-hidden="true"><CircleAlert size={16} /></span>,
-        action: notice.pullRequestUrl ? { label: 'Abrir en Bitbucket', onClick: () => window.open(notice.pullRequestUrl, '_blank', 'noopener,noreferrer') } : undefined,
+        action: pullRequestUrl ? { label: 'Abrir en Bitbucket', onClick: () => window.open(pullRequestUrl, '_blank', 'noopener,noreferrer') } : undefined,
       })
       return
     }

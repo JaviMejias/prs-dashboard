@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useDismissableLayer } from '../hooks/useDismissableLayer'
 import { relativeTime } from '../lib/dashboard'
+import { safeBitbucketUrl } from '../lib/externalLinks'
 import { getNoticePresentation } from '../lib/notifications'
 import type { NoticePresentation } from '../lib/notifications'
 import type { Notice } from '../types'
@@ -79,6 +80,8 @@ export default function NotificationPanel({
         {notices.length ? notices.map((notice) => {
           const presentation = presentations.get(notice.id) || getNoticePresentation(notice)
           const StateIcon = noticeIcons[presentation.tone]
+          const actorUrl = safeBitbucketUrl(notice.actorUrl)
+          const pullRequestUrl = safeBitbucketUrl(notice.pullRequestUrl)
 
           return (
             <article className={`notification-item is-${presentation.tone} ${presentation.resolved ? 'is-resolved' : ''} ${notice.read ? 'is-read' : 'is-unread'}`} key={notice.id}>
@@ -93,14 +96,14 @@ export default function NotificationPanel({
               </span>
               <div className="notification-content">
                 <p className="notification-copy">
-                  {notice.actorUrl ? (
-                    <a href={notice.actorUrl} target="_blank" rel="noreferrer" onClick={() => onRead(notice.id)} aria-label={`Abrir repositorio de ${notice.actorName}`}>
+                  {actorUrl ? (
+                    <a href={actorUrl} target="_blank" rel="noreferrer" onClick={() => onRead(notice.id)} aria-label={`Abrir repositorio de ${notice.actorName}`}>
                       {notice.actorName}<ArrowUpRight size={11} aria-hidden="true" />
                     </a>
                   ) : <strong>{notice.actorName}</strong>}
                   {' '}{notice.action}{' '}
-                  {notice.pullRequestUrl ? (
-                    <a href={notice.pullRequestUrl} target="_blank" rel="noreferrer" onClick={() => onRead(notice.id)} aria-label={`Abrir pull request ${notice.pullRequestTitle}`}>
+                  {pullRequestUrl ? (
+                    <a href={pullRequestUrl} target="_blank" rel="noreferrer" onClick={() => onRead(notice.id)} aria-label={`Abrir pull request ${notice.pullRequestTitle}`}>
                       {notice.pullRequestTitle}<ArrowUpRight size={11} aria-hidden="true" />
                     </a>
                   ) : <strong>{notice.pullRequestTitle}</strong>}
