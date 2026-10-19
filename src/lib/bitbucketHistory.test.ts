@@ -120,6 +120,7 @@ describe('getPullRequests activity loading', () => {
 
     expect(result[0]?.activity[0]?.update?.source?.commit?.hash).toBe('abcdef123456')
     expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes('/pullrequests?')).every(([input]) => new URL(input).searchParams.get('pagelen') === '50')).toBe(true)
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/pullrequests/activity?'))).toBe(false)
     vi.unstubAllGlobals()
   })
