@@ -4,7 +4,7 @@ import { getReviewContextDetails, type ReviewContextDetails } from '../lib/bitbu
 import { buildReviewContext } from '../lib/reviewContext'
 import { sessionCacheKey } from '../lib/queryIdentity'
 import { resolveRulepacksForRepository } from '../lib/rulepacks'
-import { getCustomRules } from '../lib/storage'
+import { usePreparationData } from './usePreparationSettings'
 import type { PullRequest, Session } from '../types'
 
 export function reviewContextQuery(pr: PullRequest, session: Session, enabled = true) {
@@ -21,7 +21,7 @@ export function reviewContextQuery(pr: PullRequest, session: Session, enabled = 
 
 export function useReviewContext(pr: PullRequest, session: Session, enabled = true) {
   const query = useQuery(reviewContextQuery(pr, session, enabled))
-  const customRules = useMemo(() => getCustomRules(), [])
+  const { customRules } = usePreparationData()
   const resolved = useMemo(() => resolveRulepacksForRepository(pr.repo, customRules), [customRules, pr.repo])
   const buildContext = (details: ReviewContextDetails) => buildReviewContext(pr, session, { ...details, unavailable: [...details.unavailable, ...resolved.unavailable] }, resolved.rulepacks, resolved.rules)
   return { query, context: query.data ? buildContext(query.data) : null, buildContext }

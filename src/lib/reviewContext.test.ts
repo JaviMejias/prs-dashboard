@@ -30,7 +30,7 @@ describe('ReviewContext', () => {
     vi.stubGlobal('localStorage', { getItem: (key: string) => key === 'prcr:preparation-v1' ? JSON.stringify({ schemaVersion: 1, repositories: [], customRules: [], personalPreferences: { instructions: 'PORTABLE-QA-PREFERENCE' } }) : null })
     const profile = { ...emptyProjectProfile(), summary: 'ERP multitenant confirmado', architecture: 'Monolito Rails', unknowns: 'PWA pendiente de verificar' }
     const context = buildReviewContext({ ...pr, repo: { ...pr.repo, profile } }, session, emptyDetails)
-    const prompt = buildCodexPreparation(context)
+    const prompt = buildCodexPreparation(context, { mode: 'full' })
     expect(prompt).toContain('ERP multitenant confirmado')
     expect(prompt).toContain('PWA pendiente de verificar')
     expect(prompt).toContain('PORTABLE-QA-PREFERENCE')
@@ -81,7 +81,7 @@ describe('ReviewContext', () => {
     const describedPr = { ...pr, description: 'Validar descuentos por país.\nNo romper redondeo.' }
     const context = buildReviewContext(describedPr, session, emptyDetails)
     const instruction = buildGitReviewInstruction(describedPr, session, { developerRemotes: [], repositoryRemotes: [], syncRemotesConfirmed: true })
-    const prompt = buildCodexPreparation(context, { instruction, additionalContext: 'WhatsApp: el autor dice que agregó validación.' })
+    const prompt = buildCodexPreparation(context, { instruction, additionalContext: 'WhatsApp: el autor dice que agregó validación.', mode: 'full' })
     expect(prompt).toContain('PR #12: Add review context')
     expect(prompt).toContain('remoto SIN CONFIGURAR')
     expect(prompt).toContain('no es una comprobación automática')
@@ -99,7 +99,7 @@ describe('ReviewContext', () => {
     const markdown = buildReviewContextMarkdown(context)
     expect(markdown).toContain('No se pudieron cargar los comentarios')
     expect(markdown).not.toContain('No hay respuestas posteriores')
-    expect(buildCodexPreparation(context)).toContain('no consulta WhatsApp')
+    expect(buildCodexPreparation(context)).toContain('No se pudieron cargar los comentarios')
   })
 
   it('does not present a failed diffstat as zero changes', () => {
@@ -181,7 +181,7 @@ describe('ReviewContext', () => {
     expect(context.rules[0].reference).toBe(rule.reference)
     expect(buildApplicableRulesMarkdown(context)).toContain(rule.name)
     expect(buildCodexPreparation(context)).toContain('# Instrucciones para Codex')
-    expect(buildCodexPreparation(context)).toContain('# Pull Request')
+    expect(buildCodexPreparation(context, { mode: 'full' })).toContain('# Pull Request')
   })
 
   it('generates a self-contained repository configuration with full rule content', () => {
@@ -193,5 +193,35 @@ describe('ReviewContext', () => {
     expect(configuration).toContain(rule.reference)
     expect(configuration).toContain(rule.content)
     expect(configuration).toContain('Trata cada regla como una instrucción explícita')
+  })
+  it('defaults to a compact PR without repeating the project profile or rule content', () => {
+    const rule = { ...getAvailableRules()[0], content: 'FULL-RULE-CONTENT '.repeat(500) }
+    const profile = { ...emptyProjectProfile(), summary: 'PROJECT-SUMMARY-ONLY-AT-START', reviewGuidelines: 'PROJECT-CRITERIA' }
+    const context = buildReviewContext({ ...pr, description: 'DESCRIBE-THIS-PR', repo: { ...pr.repo, profile } }, session, emptyDetails, [], [rule])
+    const compact = buildCodexPreparation(context, { additionalContext: 'WHATSAPP-NOTE' })
+    const full = buildCodexPreparation(context, { mode: 'full' })
+    expect(compact).toContain('Contexto inicial requerido: ctx-')
+    expect(compact).toContain('antes de revisar')
+    expect(compact).toContain('DESCRIBE-THIS-PR')
+    expect(compact).toContain('WHATSAPP-NOTE')
+    for (const value of ['PROJECT-SUMMARY-ONLY-AT-START', 'PROJECT-CRITERIA', 'FULL-RULE-CONTENT']) {
+      expect(compact).not.toContain(value)
+      expect(full).toContain(value)
+    }
+    expect(compact.length).toBeLessThan(full.length / 2)
+  })
+  it('includes each comment once while preserving direct, nested and historical reply links', () => {
+    const comments = [
+      { id: 1, authorUuid: '{me}', content: 'MY-ORIGINAL-OBSERVATION', path: 'app/order.rb', line: 20 },
+      { id: 2, parentId: 1, authorUuid: '{dev}', content: 'DEV-HISTORICAL-ANSWER', date: '2026-09-14T10:30:00Z' },
+      { id: 3, parentId: 2, authorUuid: '{dev}', content: 'DEV-NESTED-ANSWER', date: '2026-09-14T12:30:00Z' },
+    ]
+    const context = buildReviewContext(pr, session, { ...emptyDetails, comments, activity: [{ comment: { created_on: '2026-09-14T11:30:00Z', user: { uuid: '{me}' } } }] })
+    const compact = buildCodexPreparation(context)
+    for (const comment of comments) expect(compact.split(comment.content)).toHaveLength(2)
+    expect(compact).toContain('respuesta a #2 · seguimiento de tu observación #1')
+    expect(compact).toContain('app/order.rb:20')
+    expect(compact).toContain('posterior a tu participación')
+    expect(compact).toContain('un hilo antiguo no significa resuelto')
   })
 })

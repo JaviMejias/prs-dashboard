@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { m, useReducedMotion } from 'framer-motion'
 import { AlertTriangle, BookOpen, Check, Clipboard, Code2, FileCode2, GitCommitHorizontal, MessageCircle, RefreshCw, X } from 'lucide-react'
@@ -22,7 +22,7 @@ function ReviewContextPreview({ context, codexPreparation, json }: { context: Re
     </div>
     <section className="context-rulepacks" aria-labelledby="context-rulepacks-title">
       <div className="context-section-heading"><BookOpen size={17} /><div><h3 id="context-rulepacks-title">Reglas de revisión aplicables</h3><p>Reglas explícitas de la biblioteca local, ordenadas para este repositorio.</p></div></div>
-      {context.rules.length ? context.rules.map((rule) => <details className="context-rulepack" key={rule.reference} open><summary><strong>{rule.name}</strong><span>{rule.category}{rule.version ? ` · ${rule.version}` : ''}</span></summary><p>{rule.description}</p><pre>{rule.content}</pre></details>) : <p className="context-no-rulepacks">Sin reglas configuradas para este repositorio.</p>}
+      {context.rules.length ? context.rules.map((rule) => <details className="context-rulepack" key={rule.reference}><summary><strong>{rule.name}</strong><span>{rule.category}{rule.version ? ` · ${rule.version}` : ''}</span></summary><p>{rule.description}</p><pre>{rule.content}</pre></details>) : <p className="context-no-rulepacks">Sin reglas configuradas para este repositorio.</p>}
     </section>
     <details className="context-preview" open>
       <summary>Vista previa de la guía para Codex</summary>
@@ -45,7 +45,8 @@ export default function ReviewContextDialog({ pr, session, instruction, addition
   const reduceMotion = useReducedMotion()
   const close = useCallback(onClose, [onClose])
   useModalDialog(true, dialogRef, close)
-  const { query, context, markdown, json, rulesMarkdown, codexPreparation, canCopy, canCopyGuide, copying, copyError, copy } = useReviewContextExport(pr, session, instruction, additionalContext)
+  const [includeProject, setIncludeProject] = useState(false)
+  const { query, context, markdown, json, rulesMarkdown, codexPreparation, canCopy, canCopyGuide, copying, copyError, copy } = useReviewContextExport(pr, session, instruction, additionalContext, includeProject ? 'full' : 'compact')
 
   return createPortal((
     <div className="dialog-backdrop review-context-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -71,6 +72,8 @@ export default function ReviewContextDialog({ pr, session, instruction, addition
           {context && <>
             <button type="button" className="button button-secondary" disabled={query.isFetching} aria-busy={query.isFetching} onClick={() => void query.refetch()}><RefreshCw size={15} className={query.isFetching ? 'spin' : ''} /> Actualizar contexto</button>
             <ReviewContextWarning unavailable={context.unavailable} />
+            <label className="preparation-check context-guide-mode"><input type="checkbox" checked={includeProject} disabled={copying} onChange={(event) => setIncludeProject(event.target.checked)} /> Incluir contexto completo del proyecto en la guía</label>
+            <p className="review-context-hint">Por defecto se copian solo el PR y sus conversaciones. Activa esta opción para una revisión autocontenida; la ficha y las reglas volverán a incluirse.</p>
             {copyError && <div className="context-error" role="alert">{copyError}</div>}
             <ReviewContextPreview context={context} codexPreparation={codexPreparation} json={json} />
           </>}

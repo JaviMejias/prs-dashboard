@@ -4,6 +4,7 @@ import { ChevronDown, Copy, FileJson, GitBranch, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { useLocalReviewPreparation, type CopyState } from '../hooks/useLocalReviewPreparation'
 import { displayName } from '../lib/dashboard'
+import { openProjectSession } from '../lib/projectSession'
 import { buildGitReviewInstruction, getGitRemotesCommand, type GitReviewInstruction } from '../lib/gitWorkflow'
 import ReviewContextDialog from './ReviewContextDialog'
 import type { GitWorkflowSettings, PullRequest, Session } from '../types'
@@ -95,11 +96,13 @@ export default function LocalReviewGuide({ pr, session, settings, onSettingsChan
           <small id={`${fieldId}-help`}>Se incluye al copiar. No consultamos WhatsApp. La nota permanece al cerrar esta guía, pero se pierde al salir de la cola o recargar.</small>
         </div>
         <div className="instruction-actions">
+          <button type="button" className="instruction-context" onClick={() => openProjectSession(pr.repo)}><Copy size={14} /> Contexto inicial / Nuevo chat</button>
           <button type="button" className="instruction-context" onClick={() => setContextOpen(true)}><FileJson size={14} /> Ver contexto</button>
           <button type="button" className="instruction-copy" onClick={() => void copyPreparation()} disabled={busy} aria-busy={busy}>{busy ? <RefreshCw size={14} className="spin" /> : <Copy size={14} />}{busy ? 'Preparando…' : 'Copiar para Codex'}</button>
           <button type="button" className={`sync-check${settings.syncRemotesConfirmed ? ' is-checked' : ''}`} onClick={() => onSettingsChange({ ...settings, syncRemotesConfirmed: !settings.syncRemotesConfirmed })} aria-pressed={settings.syncRemotesConfirmed}><span>{settings.syncRemotesConfirmed ? '✓' : ''}</span> Remotos actualizados</button>
           {!settings.syncRemotesConfirmed && <button type="button" className="sync-command" onClick={() => void copySyncCommand()}>Copiar git sync-remotes</button>}
         </div>
+        <p className="review-context-hint">La guía del PR es compacta: no repite la ficha ni las reglas generales. Comparte el contexto inicial al abrir un chat o si el agente lo pierde. En Ver contexto puedes incluir la guía completa.</p>
         <ReviewCopyFeedback state={copyState} unavailable={unavailable} />
       </m.div>}
     </AnimatePresence>

@@ -1,4 +1,5 @@
 import { defaultPersonalPreferences, isPersonalPreferences, isProjectProfile, safeDocumentationUrl } from './projectPreparation'
+import type { ContextReminder } from './projectSession'
 import type { GitWorkflowSettings, IgnoreRules, Notice, NotificationPreferences, NotificationSnapshot, PersonalReviewPreferences, PreparationData, RepoConfig, RepositoryTechnology, ReviewHistory, ReviewRule, Session, StoredPreparation } from '../types'
 const keys = { session: 'prcr:session', repos: 'prcr:repos', notices: 'prcr:notices', snapshot: 'prcr:snapshot', reviewHistory: 'prcr:review-history', notificationPreferences: 'prcr:notification-preferences', ignoreRules: 'prcr:ignore-rules', gitWorkflow: 'prcr:git-workflow', customRules: 'prcr:custom-rules', repositoryLibraryMigration: 'prcr:repository-library-migration' }
 const failedWrites = new Set<string>()
@@ -173,6 +174,9 @@ export const getCustomRules = () => getPreparationSettings().customRules
 export const saveCustomRules = (customRules: ReviewRule[]) => savePreparationSettings({ ...getPreparationSettings(), customRules })
 export const getPersonalReviewPreferences = () => getPreparationSettings().personalPreferences
 export const savePersonalReviewPreferences = (personalPreferences: PersonalReviewPreferences) => savePreparationSettings({ ...getPreparationSettings(), personalPreferences })
+export const getContextReminder = (account: string) => getJson<ContextReminder | null>(`prcr:context-reminder:${encodeURIComponent(account)}`, null,
+  (value): value is ContextReminder | null => value === null || (isRecord(value) && typeof value.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.day) && typeof value.revision === 'string' && /^ctx-[a-f0-9]{8}$/.test(value.revision)))
+export const saveContextReminder = (account: string, reminder: ContextReminder) => saveJson(`prcr:context-reminder:${encodeURIComponent(account)}`, reminder)
 export const getNotices = () => getJson<unknown[]>(keys.notices, [], (value): value is unknown[] => Array.isArray(value)).filter(isActionableNotice)
 export const saveNotices = (n: Notice[]) => saveJson(keys.notices, n.slice(0, 40))
 export const getSnapshot = () => getJson<NotificationSnapshot>(keys.snapshot, {}, isNotificationSnapshot)
