@@ -16,7 +16,8 @@ export function pullRequestQueueQuery(client: QueryClient, session: Session, rep
     queryFn: async ({ signal }) => {
       try {
         return await getPullRequests(repo, session, {
-          state, signal, previousPullRequests: client.getQueryData<PullRequest[]>(queryKey),
+          state, signal,
+          previousPullRequests: client.getQueryState(queryKey)?.isInvalidated ? undefined : client.getQueryData<PullRequest[]>(queryKey),
           loadActivity: (pr, load) => client.fetchQuery({
             queryKey: ['queue-activity-v1', sessionCacheKey(session), repo.workspace, repo.repo, pr.id, pr.updated_on],
             queryFn: load, staleTime: Infinity, gcTime: 60 * 60_000, retry: false,
@@ -41,6 +42,24 @@ export function pullRequestQueueQuery(client: QueryClient, session: Session, rep
     staleTime: 60_000,
     retry: false,
   })
+}
+
+export async function refreshPullRequestQueue(client: QueryClient, session: Session, repos: RepoConfig[]) {
+  const account = sessionCacheKey(session)
+  const matchesRepository = (key: readonly unknown[]) => key[1] === account
+    && repos.some((repo) => key[2] === repo.workspace && key[3] === repo.repo)
+  const details = ['stats', 'review-context']
+  await client.invalidateQueries({
+    predicate: ({ queryKey }) => matchesRepository(queryKey) && ['queue-activity-v1', ...details].includes(String(queryKey[0])),
+    refetchType: 'none',
+  })
+  await client.invalidateQueries({
+    predicate: ({ queryKey }) => queryKey[0] === 'prs-v3' && matchesRepository(queryKey),
+  })
+  await client.refetchQueries({
+    predicate: ({ queryKey }) => matchesRepository(queryKey) && details.includes(String(queryKey[0])),
+    type: 'active', stale: true,
+  }, { cancelRefetch: false })
 }
 
 export function usePullRequestQueue(session: Session | null, repos: RepoConfig[], lifecycle: LifecycleFilter = 'OPEN') {
@@ -82,6 +101,7 @@ export function usePullRequestQueue(session: Session | null, repos: RepoConfig[]
   if (pullRequestStates.every((state) => loadedLifecycles.has(state))) loadedLifecycles.add('ALL')
 
   return {
+    refresh: () => session ? refreshPullRequestQueue(client, session, repos) : Promise.resolve(),
     queries, allPrs, fetching, fetchedRepositories, initialLoading, loadingProgress,
     repositoryErrors, errorCount, initialSyncComplete, syncVersion, successfulRepositoryKeys, latestSync,
     loadedLifecycles,

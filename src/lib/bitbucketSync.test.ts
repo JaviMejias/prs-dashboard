@@ -24,6 +24,19 @@ describe('repository sync', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('bypasses the browser HTTP cache for every page and activity request', async () => {
+    const fetchMock = vi.fn(async (input: string | URL, init: RequestInit) => {
+      expect(init.cache).toBe('no-store')
+      const url = new URL(input)
+      if (url.pathname.endsWith('/activity')) return response({ values: [] })
+      if (url.searchParams.has('page')) return response({ values: [pr(2)] })
+      return response({ values: [pr(1)], next: `${url}&page=2` })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(getPullRequests(repo, session, { state: 'OPEN' })).resolves.toHaveLength(2)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
   it('reuses unchanged activity and reloads changed PRs', async () => {
     let updated = false
     const fetchMock = vi.fn(async (input: string | URL) => {

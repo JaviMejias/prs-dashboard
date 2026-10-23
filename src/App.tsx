@@ -222,7 +222,7 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
   }, [preferences.sound, session])
 
   const {
-    queries,
+    refresh: refreshQueue,
     allPrs,
     fetching,
     fetchedRepositories,
@@ -322,7 +322,7 @@ function Dashboard({ session, setSession }: { session: Session; setSession: (ses
     }
 
     if (fetching) return
-    queries.forEach((query) => void query.refetch())
+    void refreshQueue()
     toast('Sincronizando con Bitbucket…', { id: 'manual-refresh', icon: <RefreshCw size={16} /> })
   }
   const closeSettings = useCallback(() => setShowSettings(false), [])
