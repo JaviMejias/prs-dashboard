@@ -77,7 +77,7 @@ async function request<T>(url: string, session: Session, timeoutMs = REQUEST_TIM
     await acquireRequestSlot(controller.signal)
     acquired = true
     controller.signal.throwIfAborted()
-    const response = await fetch(url, { headers: { Authorization: auth(session), Accept: 'application/json' }, signal: controller.signal })
+    const response = await fetch(url, { headers: { Authorization: auth(session), Accept: 'application/json' }, cache: 'no-store', signal: controller.signal })
     if (!response.ok) throw new BitbucketRequestError(responseError(response.status), operation, response.status)
     return await response.json() as T
   } catch (reason) {
