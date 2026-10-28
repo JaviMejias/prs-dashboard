@@ -4448,7 +4448,7 @@ input:focus-visible,
 .summary-history-copy small { color: #7f9990; font-size: .66rem; line-height: 1.45; }
 .summary-history-status.has-error { border-color: rgba(239,131,111,.3); background: rgba(76,34,31,.25); }
 .summary-history-status.has-error .summary-history-icon { color: #ef937f; background: rgba(239,131,111,.12); }
-.summary-history-refresh { flex: 0 0 auto; min-height: 2rem; padding: .4rem .65rem; font-size: .64rem; }
+.summary-history-refresh { flex: 0 0 auto; min-width: 10rem; min-height: 2rem; padding: .4rem .65rem; font-size: .64rem; }
 .summary-history-reset { margin-top: .35rem; padding-left: .15rem; color: #728d83; font-size: .62rem; }
 .authors-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .85rem; }
 .author-search { display: flex; align-items: center; gap: .5rem; width: min(100%, 22rem); border: 1px solid rgba(130, 164, 153, .2); border-radius: 8px; padding: .6rem .7rem; color: #7fa497; background: rgba(10, 24, 23, .6); }

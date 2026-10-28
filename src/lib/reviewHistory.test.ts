@@ -13,6 +13,32 @@ const pullRequest = (overrides: Partial<PullRequest> = {}): PullRequest => ({
 })
 
 describe('review history', () => {
+  it('keeps an edited comment in its original review period', () => {
+    const history = buildPullRequestHistory(pullRequest({ activity: [{ comment: {
+      id: 12, created_on: '2026-02-01T12:00:00Z', updated_on: '2026-09-01T12:00:00Z', user: { uuid: '{qa}' },
+    } }] }))
+    expect(history.events[0].date).toBe('2026-02-01T12:00:00Z')
+  })
+
+  it('includes historical change requests even if the reviewer is now approved', () => {
+    const history = buildPullRequestHistory(pullRequest({
+      participants: [{ approved: true, participated_on: '2026-09-01T12:00:00Z', user: { uuid: '{qa}' } }],
+      activity: [{ changes_requested: { date: '2026-02-01T12:00:00Z', user: { uuid: '{qa}' } } }],
+    }))
+    expect(history.events).toContainEqual(expect.objectContaining({ type: 'changes_requested', date: '2026-02-01T12:00:00Z', reviewerUuid: '{qa}' }))
+  })
+
+  it('retains activity evidence when participant metadata describes the same change request', () => {
+    const date = '2026-02-01T12:00:00Z'
+    const user = { uuid: '{qa}' }
+    const history = buildPullRequestHistory(pullRequest({
+      participants: [{ state: 'changes_requested', participated_on: date, user }],
+      activity: [{ changes_requested: { date, user } }],
+    }))
+    expect(history.events).toHaveLength(1)
+    expect(history.events[0].source).toBe('activity')
+  })
+
   it('stores review comments and deduplicates participant activity', () => {
     const history = buildPullRequestHistory(pullRequest({
       participants: [{ user: { uuid: '{javier}', display_name: 'Javier Mejías' }, participated_on: '2026-09-15T14:58:45Z' }],

@@ -1,6 +1,7 @@
 import type { ActivityUser, BitbucketUser, PrStats, PullRequest, PullRequestActivity, RepoConfig, ReviewContextComment, ReviewContextCommit, ReviewContextFile, ReviewContextDiffstat, ReviewHistoryPullRequest, Session } from '../types'
 import { summaryDateBounds } from './summaryHistory'
 import type { DateRange } from './dateRange'
+import { bitbucketHold, historicalRequest, holdBitbucket } from './bitbucketTraffic'
 export { classifyPr, getLifecycleStatus, getReviewDecision, getReviewerState, isFreshPullRequest } from './pullRequestReviewState'
 const API = 'https://api.bitbucket.org/2.0'
 const REQUEST_TIMEOUT_MS = 30_000
@@ -39,7 +40,7 @@ function releaseRequestSlot() {
 
 const auth = (s: Session) => `Basic ${btoa(`${s.email}:${s.token}`)}`
 export class BitbucketRequestError extends Error {
-  constructor(message: string, readonly operation: string, readonly status?: number) {
+  constructor(message: string, readonly operation: string, readonly status?: number, readonly retryAt?: number) {
     super(`${operation}: ${message}`)
     this.name = 'BitbucketRequestError'
   }
@@ -67,6 +68,11 @@ function responseError(status: number) {
 
 async function request<T>(url: string, session: Session, timeoutMs = REQUEST_TIMEOUT_MS, signal?: AbortSignal): Promise<T> {
   const operation = requestOperation(url)
+  const checkHold = () => {
+    const hold = bitbucketHold(session)
+    if (hold) throw new BitbucketRequestError(hold.message, operation, hold.status, hold.until)
+  }
+  checkHold()
   const controller = new AbortController()
   const cancel = () => controller.abort(signal?.reason)
   signal?.addEventListener('abort', cancel, { once: true })
@@ -77,8 +83,15 @@ async function request<T>(url: string, session: Session, timeoutMs = REQUEST_TIM
     await acquireRequestSlot(controller.signal)
     acquired = true
     controller.signal.throwIfAborted()
+    checkHold()
     const response = await fetch(url, { headers: { Authorization: auth(session), Accept: 'application/json' }, cache: 'no-store', signal: controller.signal })
-    if (!response.ok) throw new BitbucketRequestError(responseError(response.status), operation, response.status)
+    if (!response.ok) {
+      const retryAfter = response.headers?.get('Retry-After')
+      const retryAt = response.status === 429
+        ? Math.max(Date.now() + 60_000, retryAfter && /^\d+$/.test(retryAfter) ? Date.now() + Number(retryAfter) * 1_000 : Date.parse(retryAfter || '') || 0)
+        : undefined
+      throw new BitbucketRequestError(responseError(response.status), operation, response.status, retryAt)
+    }
     return await response.json() as T
   } catch (reason) {
     if (controller.signal.aborted) throw controller.signal.reason
@@ -195,6 +208,42 @@ export async function getReviewHistorySnapshot(repo: RepoConfig, session: Sessio
 
 export type SummaryActivityPage = { items: PullRequestActivity[]; complete: boolean }
 export type SummaryActivityLoader = (pr: PullRequest, load: () => Promise<SummaryActivityPage>) => Promise<SummaryActivityPage>
+
+export function historyListUrl(repo: RepoConfig, range: DateRange, state: PullRequest['state']) {
+  const { start, endExclusive } = summaryDateBounds(range)
+  const fields = 'values.id,values.title,values.state,values.created_on,values.updated_on,values.links.html,values.participants,next'
+  const params = new URLSearchParams({ state, q: `updated_on >= ${start} AND created_on < ${endExclusive}`, pagelen: '50', fields, sort: 'id' })
+  return `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests?${params}`
+}
+
+export function historyActivityUrl(repo: RepoConfig, id: number) {
+  const fields = `${activityFields},values.changes_requested.date,values.changes_requested.user.uuid,values.changes_requested.user.display_name`
+  return `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests/${id}/activity?pagelen=50&fields=${fields}`
+}
+
+export async function getHistoryPage<T>(url: string, repo: RepoConfig, session: Session, signal: AbortSignal): Promise<{ items: T[]; next?: string }> {
+  const base = `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests`
+  const parsed = new URL(url)
+  const expected = new URL(base)
+  if (parsed.origin !== expected.origin || parsed.username || parsed.password
+    || (parsed.pathname !== expected.pathname && !new RegExp(`^${expected.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/\\d+/activity$`).test(parsed.pathname))) {
+    throw new BitbucketRequestError('La página de historial no pertenece al repositorio solicitado.', 'Importación histórica')
+  }
+  try {
+    return await historicalRequest(session, signal, async () => {
+      const page = await request<Page<T>>(url, session, REQUEST_TIMEOUT_MS, signal)
+      if (!Array.isArray(page.values) || (page.next !== undefined && typeof page.next !== 'string')) throw new BitbucketRequestError('Bitbucket devolvió una página inválida.', 'Importación histórica')
+      return { items: page.values, next: page.next }
+    })
+  } catch (reason) {
+    if (!signal.aborted && reason instanceof BitbucketRequestError && (reason.status === 429 || reason.status === undefined && reason.operation !== 'Importación histórica')) {
+      const message = reason.status === 429 ? reason.message : `${reason.message} El navegador puede ocultar el motivo por conexión, timeout o CORS; no podemos confirmar el estado HTTP. Pausamos las consultas para no insistir.`
+      holdBitbucket(session, { until: reason.retryAt || Date.now() + 60_000, status: reason.status, message })
+      if (reason.status === undefined) throw new BitbucketRequestError(message, 'Importación histórica', undefined, Date.now() + 60_000)
+    }
+    throw reason
+  }
+}
 
 export async function getReviewHistoryForRange(repo: RepoConfig, session: Session, range: DateRange, loadActivity: SummaryActivityLoader = (_pr, load) => load()) {
   const base = `${API}/repositories/${encodeURIComponent(repo.workspace)}/${encodeURIComponent(repo.repo)}/pullrequests`
