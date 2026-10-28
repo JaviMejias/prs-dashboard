@@ -2,7 +2,7 @@ import type { PullRequest, PullRequestActivity, RepoConfig, ReviewHistory, Revie
 
 const repositoryKey = (pr: PullRequest) => `${pr.repo.workspace}/${pr.repo.repo}`
 const configRepositoryKey = (repo: RepoConfig) => `${repo.workspace}/${repo.repo}`
-const eventDate = (item: PullRequestActivity) => item.comment?.updated_on || item.comment?.created_on || item.approval?.date
+const eventDate = (item: PullRequestActivity) => item.comment?.created_on || item.comment?.updated_on || item.approval?.date
 const eventUser = (item: PullRequestActivity) => item.comment?.user || item.approval?.user
 const eventId = (type: ReviewHistoryEvent['type'], date: string, user?: { uuid?: string; display_name?: string }) => [type, date, user?.uuid || user?.display_name || 'unknown'].join('|')
 
@@ -15,13 +15,17 @@ function toReviewEvent(item: PullRequestActivity): ReviewHistoryEvent | undefine
     const stableId = commentId === undefined
       ? eventId('comment', item.comment.created_on || date, user)
       : `comment:${commentId}`
-    return { id: stableId, date, type: 'comment', reviewerUuid: user?.uuid, reviewerName: user?.display_name, commentId }
+    return { id: stableId, date, type: 'comment', reviewerUuid: user?.uuid, reviewerName: user?.display_name, commentId, source: 'activity' }
   }
   if (item.approval) {
     const date = eventDate(item)
     if (!date) return undefined
     const user = eventUser(item)
-    return { id: eventId('approval', date, user), date, type: 'approval', reviewerUuid: user?.uuid, reviewerName: user?.display_name }
+    return { id: eventId('approval', date, user), date, type: 'approval', reviewerUuid: user?.uuid, reviewerName: user?.display_name, source: 'activity' }
+  }
+  if (item.changes_requested?.date) {
+    const { date, user } = item.changes_requested
+    return { id: eventId('changes_requested', date, user), date, type: 'changes_requested', reviewerUuid: user?.uuid, reviewerName: user?.display_name, source: 'activity' }
   }
   return undefined
 }
@@ -37,6 +41,7 @@ function participantEvents(pr: PullRequest) {
       type,
       reviewerUuid: user?.uuid,
       reviewerName: user?.display_name,
+      source: 'participants',
     } satisfies ReviewHistoryEvent]
   })
 }
@@ -46,7 +51,11 @@ export function buildPullRequestHistory(pr: PullRequest): ReviewHistoryPullReque
     ...(pr.activity || []).map(toReviewEvent).filter((event): event is ReviewHistoryEvent => Boolean(event)),
     ...participantEvents(pr),
   ]
-  const uniqueEvents = Array.from(new Map(events.map((event) => [event.id, event])).values())
+  const byId = new Map<string, ReviewHistoryEvent>()
+  events.forEach((event) => {
+    if (byId.get(event.id)?.source !== 'activity') byId.set(event.id, event)
+  })
+  const uniqueEvents = Array.from(byId.values())
     .sort((first, second) => new Date(first.date).getTime() - new Date(second.date).getTime())
   return { id: pr.id, state: pr.state, createdAt: pr.created_on, updatedOn: pr.updated_on, title: pr.title, url: pr.links?.html?.href, events: uniqueEvents }
 }

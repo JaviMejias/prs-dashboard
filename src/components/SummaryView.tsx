@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
 import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
-import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, CircleAlert, Clock3, GitPullRequest, MessageCircle, RefreshCw, RotateCcw, ScanEye, Sparkles, TrendingUp } from 'lucide-react'
+import { Activity, ArrowDownRight, ArrowUpRight, BarChart3, CalendarClock, CheckCircle2, CircleAlert, Clock3, Download, GitPullRequest, MessageCircle, Pause, RefreshCw, RotateCcw, ScanEye, Sparkles, TrendingUp } from 'lucide-react'
 import AnimatedNumber from './AnimatedNumber'
 import ConfirmDialog from './ConfirmDialog'
 import DateRangePicker from './DateRangePicker'
 import type { DateRange } from '../lib/dateRange'
 import { formatDate, relativeTime } from '../lib/dashboard'
 import { safeBitbucketUrl } from '../lib/externalLinks'
-import { historyPullRequestsForRepositories } from '../lib/reviewHistory'
 import { previousDateRange, summaryMetricsForRange, type SummaryEvent } from '../lib/summary'
 import { useSummaryHistory } from '../hooks/useSummaryHistory'
+import { downloadPreparationFile } from '../lib/preparationFiles'
+import { summaryReport } from '../lib/summaryReport'
 import { toast } from 'sonner'
 import type { RepoConfig, Session } from '../types'
 
@@ -37,11 +38,11 @@ function SummarySkeleton() {
   </div>
 }
 
-function SummaryEmpty({ incomplete }: { incomplete: boolean }) {
+function SummaryEmpty({ incomplete, pending = false }: { incomplete: boolean; pending?: boolean }) {
   return <div className="summary-empty" role="status">
     <span className="summary-empty-icon"><Sparkles size={24} /></span>
     <strong>{incomplete ? 'El período aún no está completo' : 'No hay actividad en este período'}</strong>
-    <p>{incomplete ? 'Reintenta la carga pendiente. No presentamos la información que falta como cero actividad.' : 'Prueba otro rango para encontrar tus revisiones, comentarios y decisiones.'}</p>
+    <p>{pending ? 'La importación sigue en curso. Todavía no encontramos actividad para este rango en las páginas descargadas.' : incomplete ? 'Reanuda la importación pendiente. No presentamos la información que falta como cero actividad.' : 'Prueba otro rango para encontrar tus revisiones, comentarios y decisiones.'}</p>
   </div>
 }
 
@@ -111,22 +112,33 @@ function SummaryDashboard({ summary, previousSummary, coverage, hasSyncErrors, r
 
 type HistorySync = ReturnType<typeof useSummaryHistory>
 
+function SummaryDownload({ sync, repos, session, range }: { sync: HistorySync; repos: RepoConfig[]; session: Session; range: DateRange }) {
+  const download = () => {
+    if (!sync.isComplete || sync.syncing) return
+    try {
+      downloadPreparationFile(`resumen-revisiones-${range.from}-${range.to}.md`, summaryReport(sync.history, repos, session, range, sync.isComplete), 'text/markdown;charset=utf-8')
+      toast.success('Informe descargado')
+    } catch { toast.error('No se pudo descargar el informe. Los datos siguen disponibles.') }
+  }
+  return <button type="button" className="text-button" disabled={!sync.isComplete || sync.syncing} onClick={download}><Download size={13} /> Descargar informe</button>
+}
+
 function historyStatusCopy(sync: HistorySync, historyCount: number) {
   const records = `${historyCount} PR ${historyCount === 1 ? 'registrado' : 'registrados'}`
   const message = sync.syncing
-    ? `Cargando período · ${sync.completedPeriods} de ${sync.periodCount} ${sync.periodCount === 1 ? 'consulta mensual' : 'consultas mensuales'}`
+    ? sync.listing ? `Buscando PR del histórico · ${sync.discovered} encontrados` : `Importando actividad · ${sync.processed} de ${sync.discovered} PR`
     : sync.errorCount > 0
-      ? `Período con errores · ${records}`
+      ? `Importación pausada · ${records}`
       : sync.isComplete
         ? `Período completo · ${records}`
         : `Período parcial · ${records}`
-  const detail = sync.errorCount > 0
-    ? `${sync.errorCount} ${sync.errorCount === 1 ? 'carga no pudo' : 'cargas no pudieron'} actualizarse. Puedes reintentar sin perder lo guardado.`
-    : sync.persistenceFailed
-      ? 'El navegador no pudo guardar la caché; los datos siguen disponibles en esta sesión.'
+  const detail = sync.persistenceFailed
+    ? 'No pudimos guardar el avance en este navegador. Los datos solo siguen en memoria: no cierres ni recargues antes de descargar el informe.'
+    : sync.errorCount > 0
+      ? `Conservamos las páginas descargadas. ${sync.retryAt > Date.now() ? `La pausa de red termina a las ${new Date(sync.retryAt).toLocaleTimeString('es-CL')}; después puedes reanudar.` : 'Puedes reanudar sin empezar de cero.'}`
       : sync.isComplete
-        ? 'Reutilizamos los meses consultados. El mes actual se actualiza en segundo plano cada 10 minutos mientras esta vista está abierta.'
-        : 'Cifras provisionales: faltan datos o Bitbucket alcanzó el límite de paginación. Reintenta la carga.'
+        ? 'Se recorrieron las páginas disponibles de la API. Los meses reutilizan este histórico; esto no recupera datos que Bitbucket haya eliminado.'
+        : 'Avance guardado en este navegador. La primera importación puede tardar; mantén Resumen abierto. Al volver, continúa desde la última página guardada.'
   return { message, detail }
 }
 
@@ -134,8 +146,10 @@ function SummaryHistoryStatus({ sync, historyCount, reposCount }: { sync: Histor
   const { message, detail } = historyStatusCopy(sync, historyCount)
   return <div className={`summary-history-status${sync.errorCount > 0 ? ' has-error' : ''}`} role={sync.errorCount > 0 ? 'alert' : 'status'} aria-live="polite">
     <span className="summary-history-icon">{sync.errorCount > 0 ? <CircleAlert size={16} /> : <GitPullRequest size={16} />}</span>
-    <span className="summary-history-copy"><strong>{message}</strong><small>{detail}</small></span>
-    <button type="button" className="button button-secondary summary-history-refresh" onClick={() => void sync.refresh()} disabled={sync.syncing || !reposCount}><RefreshCw size={14} className={sync.syncing ? 'spin' : ''} />{sync.syncing ? 'Actualizando…' : 'Actualizar período'}</button>
+    <span className="summary-history-copy"><strong>{message}</strong><small>{detail}</small>{sync.problems.map((problem) => <small key={problem}>{problem}</small>)}</span>
+    {sync.syncing
+      ? <button type="button" className="button button-secondary summary-history-refresh" onClick={() => void sync.pause()}><Pause size={14} /> Pausar importación</button>
+      : <button type="button" className="button button-secondary summary-history-refresh" onClick={() => void sync.refresh()} disabled={!reposCount}><RefreshCw size={14} />{sync.isComplete ? 'Actualizar período' : 'Reanudar importación'}</button>}
   </div>
 }
 
@@ -143,8 +157,15 @@ function SummaryBody({ sync, summary, previousSummary, coverage, range }: { sync
   const showLoading = sync.syncing && !sync.hasData
   const showEmpty = !showLoading && !summary.events.length
   return <AnimatePresence mode="wait">
-    {showLoading ? <SummarySkeleton /> : showEmpty ? <SummaryEmpty incomplete={!sync.isComplete} /> : <SummaryDashboard summary={summary} previousSummary={previousSummary} coverage={coverage} hasSyncErrors={sync.errorCount > 0} range={range} />}
+    {showLoading ? <SummarySkeleton /> : showEmpty ? <SummaryEmpty incomplete={!sync.isComplete} pending={sync.syncing} /> : <SummaryDashboard summary={summary} previousSummary={previousSummary} coverage={coverage} hasSyncErrors={sync.errorCount > 0} range={range} />}
   </AnimatePresence>
+}
+
+function ComparisonStatus({ sync }: { sync: HistorySync }) {
+  const message = sync.syncing ? 'Cargando el período anterior sin cambiar el rango seleccionado…'
+    : sync.errorCount || !sync.isComplete ? 'Comparación incompleta. Puedes reintentar sin perder el resumen actual.'
+      : 'Comparación cargada con el período anterior de igual duración.'
+  return <p role={sync.errorCount ? 'alert' : 'status'} className="summary-panel-empty">{message}</p>
 }
 
 export default function SummaryView({ repos, session, range, onRangeChange }: { repos: RepoConfig[]; session: Session; range: DateRange; onRangeChange: (range: DateRange) => void }) {
@@ -161,7 +182,7 @@ export default function SummaryView({ repos, session, range, onRangeChange }: { 
   const previousSummary = comparisonSync.isComplete ? summaryMetricsForRange(comparisonSync.history, repos, session, previousRange) : undefined
   const label = `${formatDate(`${range.from}T12:00:00`)} — ${formatDate(`${range.to}T12:00:00`)}`
   const coverage = historySync.isComplete ? 'complete' : 'partial'
-  const historyCount = historyPullRequestsForRepositories(history, repos).length
+  const historyCount = summary.reviewed
   const rebuildHistory = () => {
     void historySync.reload()
     setShowRebuildConfirm(false)
@@ -173,8 +194,10 @@ export default function SummaryView({ repos, session, range, onRangeChange }: { 
     <DateRangePicker value={range} onChange={onRangeChange} />
     <SummaryHistoryStatus sync={historySync} historyCount={historyCount} reposCount={repos.length} />
     <SummaryBody sync={historySync} summary={summary} previousSummary={previousSummary} coverage={coverage} range={range} />
-    <div className="summary-footer-note"><CalendarClock size={15} /> <span>Solo cargamos los meses del período elegido; se guardan por cuenta y repositorio.</span><button type="button" className="text-button" onClick={() => { setComparisonRange(rangeKey); if (compare) void comparisonSync.refresh() }} disabled={comparisonSync.syncing || !repos.length}>{comparisonSync.syncing ? 'Cargando comparación…' : comparisonSync.errorCount && compare ? 'Reintentar comparación' : 'Comparar con período anterior'}</button><button type="button" className="text-button summary-history-reset" onClick={() => setShowRebuildConfirm(true)} disabled={historySync.syncing || !repos.length}><RotateCcw size={13} /> Recargar período</button></div>
-    {compare && <p role={comparisonSync.errorCount ? 'alert' : 'status'} className="summary-panel-empty">{comparisonSync.syncing ? 'Cargando el período anterior sin cambiar el rango seleccionado…' : comparisonSync.errorCount || !comparisonSync.isComplete ? 'Comparación incompleta. Puedes reintentar sin perder el resumen actual.' : 'Comparación cargada con el período anterior de igual duración.'}</p>}
-    <AnimatePresence>{showRebuildConfirm && <ConfirmDialog title="¿Volver a cargar el período?" description="Consultaremos de nuevo los meses seleccionados y su actividad en Bitbucket. Conservamos la caché anterior si ocurre un error; tus otros períodos, repositorios y preferencias no cambiarán." confirmLabel="Recargar período" onConfirm={rebuildHistory} onClose={() => setShowRebuildConfirm(false)} />}</AnimatePresence>
+    <div className="summary-footer-note"><CalendarClock size={15} /> <span>Importamos por año y repositorio; cambiar de mes reutiliza las páginas guardadas.</span><button type="button" className="text-button" onClick={() => { setComparisonRange(rangeKey); if (compare) void comparisonSync.refresh() }} disabled={comparisonSync.syncing || !repos.length}>{comparisonSync.syncing ? 'Cargando comparación…' : comparisonSync.errorCount && compare ? 'Reintentar comparación' : 'Comparar con período anterior'}</button><SummaryDownload sync={historySync} repos={repos} session={session} range={range} /><button type="button" className="text-button summary-history-reset" onClick={() => setShowRebuildConfirm(true)} disabled={historySync.syncing || !repos.length}><RotateCcw size={13} /> Recargar período</button></div>
+    {!historySync.isComplete && <p className="summary-footer-note">El informe estará disponible al completar la importación. Los datos parciales no se exportan como definitivos.</p>}
+    <p className="summary-footer-note">El avance es local a este navegador; no se sincroniza entre PCs y puede perderse si borras sus datos.</p>
+    {compare && <ComparisonStatus sync={comparisonSync} />}
+    <AnimatePresence>{showRebuildConfirm && <ConfirmDialog title="¿Volver a cargar el histórico?" description="Volveremos a consultar el listado y toda la actividad de los años y repositorios del período. Esto puede consumir muchas consultas. Conservamos los datos anteriores si ocurre un error." confirmLabel="Recargar histórico" onConfirm={rebuildHistory} onClose={() => setShowRebuildConfirm(false)} />}</AnimatePresence>
   </section>
 }

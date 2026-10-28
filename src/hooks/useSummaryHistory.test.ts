@@ -1,6 +1,7 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { summaryMonthQuery } from './useSummaryHistory'
+import { historicalImportQuery, summaryMonthQuery } from './useSummaryHistory'
+import { historyYears } from '../lib/historyImport'
 import { readSummaryMonth, summaryMonths, summaryScope } from '../lib/summaryHistory'
 import type { RepoConfig, Session } from '../types'
 
@@ -29,7 +30,44 @@ beforeEach(() => {
   fetchMock = vi.fn(async (input: string | URL) => serve(input))
   vi.stubGlobal('fetch', fetchMock)
 })
-afterEach(() => { clients.splice(0).forEach((value) => value.clear()); vi.unstubAllGlobals() })
+afterEach(() => { clients.splice(0).forEach((value) => value.clear()); vi.unstubAllGlobals(); vi.useRealTimers() })
+
+describe('yearly import query integration', () => {
+  it('uses one query for all months and the annual view, without duplicate downloads', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 28, 12))
+    const cache = client()
+    const identity = { ...session, uuid: '{year-query}' }
+    const month = historicalImportQuery(cache, repo, identity, historyYears(september)[0])
+    const year = historicalImportQuery(cache, repo, identity, historyYears({ from: '2026-01-01', to: '2026-10-28' })[0])
+    expect(month.queryKey).toEqual(year.queryKey)
+    const first = cache.fetchQuery(month)
+    const second = cache.fetchQuery(year)
+    let settled = false
+    void first.then(() => { settled = true })
+    for (let index = 0; !settled && index < 25; index += 1) await vi.advanceTimersByTimeAsync(5_000)
+    expect(settled).toBe(true)
+    expect(await first).toMatchObject({ status: 'complete', through: '2026-10-28' })
+    expect(await second).toMatchObject({ status: 'complete' })
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    await cache.fetchQuery(year)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not fetch a disabled historical comparison and isolates cache identities', async () => {
+    const cache = client()
+    const year = { year: 2026, from: '2026-01-01', to: '2026-10-28' }
+    const options = historicalImportQuery(cache, repo, session, year, false)
+    const observer = new QueryObserver(cache, options)
+    const unsubscribe = observer.subscribe(() => {})
+    await Promise.resolve()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(historicalImportQuery(cache, repo, { ...session, uuid: '{other}' }, year).queryKey).not.toEqual(options.queryKey)
+    expect(historicalImportQuery(cache, { ...repo, repo: 'other' }, session, year).queryKey).not.toEqual(options.queryKey)
+    expect(historicalImportQuery(cache, repo, session, { ...year, year: 2025 }).queryKey).not.toEqual(options.queryKey)
+    unsubscribe()
+  })
+})
 
 describe('summary query lifecycle', () => {
   it('reuses cached months without API calls on remount or a browser reload', async () => {
